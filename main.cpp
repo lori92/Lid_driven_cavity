@@ -1,51 +1,32 @@
 #include <iostream>
-#include <fstream>
 #include <cmath>
+#include "mesh.cpp"
 using namespace std;
 
-void set_bc_u(double** u, int dim_x, int dim_y )
-{
-  for (int i=0; i<dim_x; i++) 
-  { u[i][0] = 0; }
-};
-
+/// number of cells (without ghost nodes) ///
+#define Nx 5
+#define Ny 5
 
 int main()
 {
 
-const double Lx = 1;
-const double Ly = 1;
+ const double Lx = 1;
+ const double Ly = 1;
 
-const int  Nx = 10;
-const int  Ny = 10;
+ cell **mesh = buildMesh(Nx, Ny, Lx, Ly);
+ cell **Ux   = buildMesh(Nx, Ny, Lx, Ly);
 
-double *x = new double[Nx+2];
-double *y = new double[Ny+2];
+// cell **Uy   = buildMesh_v(Nx, Ny, Lx, Ly);
+// cell **p    = buildMesh(Nx, Ny, Lx, Ly);
 
-double** u = new double*[Nx+2];
-for (int i = 0; i <= Nx+1; i++)
-{
- u[i] = new double[Ny+2];
- for (int j = 0; j <= Ny+2; j++) 
- { u[i][j] = 1.0; }
-}
+ mesh[1][Nx+1].print_cellCentre();
 
-set_bc_u(u,Nx+2,Ny+2);
+ initMeshVal(Ux, Nx, Ny, 12.5);
+ Ux  [1][Nx+1].print_cellVal();
 
-/////// 
-for (int i = 0; i<=Nx+1; i++) 
-{ x[i] = 0 + (Lx/Nx)*i; }
-
-cout << "x - position:" <<x[9]<<"\n";
-
-for (int i = 0; i<Nx+2; i++) {
- for (int j = 0; j<Ny+2; j++)  {
-  cout <<u[i][j]<<" ";
- }
- cout << "\n";
-}
-
-free(x);
-free(y);
-return 0;
+ free(mesh);
+ free(Ux);
+ //free(Uy);
+ //free(p);
+ return 0;	
 }
