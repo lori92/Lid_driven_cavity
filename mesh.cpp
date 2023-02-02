@@ -19,8 +19,10 @@ class cell
  double cellVal ();
  double dx ();
  double dy ();
-
-
+ double xCentroid ();
+ double yCentroid ();
+ double xFace (int);
+ double yFace (int) ;
 
 };
 
@@ -58,6 +60,19 @@ double cell :: dx(){
        
 double cell :: dy(){
        return this->yFaces[1]-this->yFaces[0];};
+
+double cell :: xFace(int face ){
+       return this->xFaces[face];};
+
+double cell :: yFace(int face){
+       return this->yFaces[face];};
+
+double cell :: xCentroid(){
+       return this->xC;};
+
+double cell :: yCentroid(){
+       return this->yC;};
+
 ////////////////////////////////////////////////////////////////
 cell** buildMesh (int N_x, int N_y, double L_x, double L_y)
 {
