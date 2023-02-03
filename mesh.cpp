@@ -111,7 +111,7 @@ volumeField buildFVfield (int N_x, int N_y, double L_x, double L_y)
    mesh_p[i] = new FVcell [N_y+2];
    for(int j = 0; j<= N_y+1; j++)
    {       
-    mesh_p[i][j].setCellPos( L_y/N_y/2. +  (L_y/N_y)*(i-1), L_x/N_x/2. + (L_x/N_x)*(j-1), L_y/N_y, L_x/N_x  );
+    mesh_p[i][j].setCellPos( L_x/N_x/2. +  (L_x/N_x)*(i-1), L_y/N_y/2. + (L_y/N_y)*(j-1), L_x/N_x, L_y/N_y  );
    }     
  }       
  field.mesh = mesh_p;
@@ -121,78 +121,95 @@ volumeField buildFVfield (int N_x, int N_y, double L_x, double L_y)
 };
 
 ////////////////////////////////////////////////////////////////
-void initFieldVal (FVcell** mesh_p, int N_x, int N_y, double val_in)
+void initFieldVal (volumeField field, double val_in) //FVcell** mesh_p, int N_x, int N_y, double val_in)
 {
+
+ int N_x = field.dimx;
+ int N_y = field.dimy;
 
  for (int i = 0; i <= N_x+1; i++)
  {
    for(int j = 0; j<= N_y+1; j++)
    {
-    mesh_p[i][j].setVal(val_in);
+    field.mesh[i][j].setVal(val_in);
    }
  }
  return;
 };
 ////////////////////////////////////////////////////////////////
-void setBCu (FVcell** mesh_p, int N_x, int N_y)
+void setBCuFV (volumeField* field)
 {
  // set wall boundary condition for staggered Ux velocity field  
+ int N_x, N_y;
+
+ N_x = field->dimx;
+ N_y = field->dimy;
 
 // along y-axis     
  for (int j= 0; j <= N_y+1; j++)
  {
-    mesh_p[ 0   ][j].setVal(0);
-  //  mesh_p[N_x  ][j].setVal(0);
-    mesh_p[N_x+1][j].setVal(0);
+    field->mesh[ 0   ][j].setVal(0);
+    field->mesh[N_x  ][j].setVal(0);
+    field->mesh[N_x+1][j].setVal(0);
  }
 
 // along x-axis     
  for (int i = 0; i <= N_x+1; i++)
  {
-    mesh_p[i][  0  ].setVal( -mesh_p[i][ 1 ].cellVal() )  ;
-    mesh_p[i][N_x+1].setVal( 100 -mesh_p[i][N_x].cellVal() )  ;
+    field->mesh[i][  0  ].setVal( - field->mesh[i][ 1 ].cellVal() )  ;
+    field->mesh[i][N_x+1].setVal( 100 - field->mesh[i][N_x].cellVal() )  ;
  }
  return;
 };
 ////////////////////////////////////////////////////////////////
-void setBCv (FVcell** mesh_p, int N_x, int N_y)
+void setBCvFV (volumeField* field)
 {
  // set wall boundary condition for staggered Uy velocity field  
+ // set wall boundary condition for staggered Ux velocity field  
+ int N_x, N_y;
+
+ N_x = field->dimx;
+ N_y = field->dimy;
 
  // along y-axis        
  for (int j = 0; j <= N_y+1; j++)
- { 
-    mesh_p[  0  ][j].setVal( - mesh_p[ 1 ][j].cellVal()  );
-    mesh_p[N_x+1][j].setVal( - mesh_p[N_x][j].cellVal()  );
+ {
+    field->mesh[  0  ][j].setVal( - field->mesh[ 1 ][j].cellVal()  );
+    field->mesh[N_x+1][j].setVal( - field->mesh[N_x][j].cellVal()  );
  }
 
  // along x-axis        
  for (int i = 0; i <= N_x+1; i++)
  {
-    mesh_p[i][ N_y ].setVal(0);
-    mesh_p[i][N_y+1].setVal( -mesh_p[i][ N_y ].cellVal() );
-    mesh_p[i][  0  ].setVal(0);
+    field->mesh[i][ N_y ].setVal(0);
+    field->mesh[i][N_y+1].setVal( -field->mesh[i][ N_y ].cellVal() );
+    field->mesh[i][  0  ].setVal(0);
      }
  return;
 };
-
 ////////////////////////////////////////////////////////////////
-void setBCp (FVcell** mesh_p, int N_x, int N_y)
+void setBCpFV (volumeField* p)
 {
- // set wall boundary condition for staggered Uy velocity field  
+ // set wall boundary condition for pressure  
+ int N_x, N_y;
+
+ N_x = p->dimx;
+ N_y = p->dimy;
+
+ double val = 10;
 
  // along y-axis        
  for (int j = 0; j <= N_y+1; j++)
  { 
-    mesh_p[  0  ][j].setVal(  mesh_p[ 1 ][j].cellVal()  );
-    mesh_p[N_x+1][j].setVal(  mesh_p[N_x][j].cellVal()  );
+    p->mesh[  0  ][j].setVal(0.1*    val - p->mesh[ 1 ][j].cellVal()  );
+    p->mesh[N_x+1][j].setVal( 2.*val - p->mesh[N_x][j].cellVal()  );
  }
 
  // along x-axis        
  for (int i = 0; i <= N_x+1; i++)
  {
-    mesh_p[i][  0  ].setVal( mesh_p[i][ 1   ].cellVal() );
-    mesh_p[i][N_y+1].setVal( mesh_p[i][ N_y ].cellVal() );
+    p->mesh[i][  0  ].setVal( 2.*val - p->mesh[i][ 1   ].cellVal() );
+    p->mesh[i][N_y+1].setVal( 2.*val - p->mesh[i][ N_y ].cellVal() );
      }
  return;
 };
