@@ -85,12 +85,12 @@ void poisson (      volumeField* p,
             for (int j= 1; j <= N_y; j++) {
                 for (int k= 1; k <= N_z; k++) {
 
-                aP = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j].dy() )
-                     - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j].dy() )
-                     - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[i][ j ][k].zCentroid()) * p_star.mesh[i][j].dz() )
-                     - 1./ ( (p_star.mesh[i][ j ][k].zCentroid() - p_star.mesh[i][j][k-1].zCentroid()) * p_star.mesh[i][j].dz() ) ;
+                aP = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[i][ j ][k].zCentroid()) * p_star.mesh[i][j][k].dz() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].zCentroid() - p_star.mesh[i][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() ) ;
 
                 aE = - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
                 aW = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
@@ -101,7 +101,7 @@ void poisson (      volumeField* p,
                 aF = - 1./ ( (p_star.mesh[i][j][k].zCentroid() - p_star.mesh[ i ][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() );
                 aB = - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[ i ][j][k].zCentroid()) * p_star.mesh[i][j][k].dz() );
 
-                p->mesh[i][j].setVal( (1.-omega)*p_star.mesh[i][j].cellVal() +
+                p->mesh[i][j][k].setVal( (1.-omega)*p_star.mesh[i][j][k].cellVal() +
                                 omega/aP * ( aW*p_star.mesh[i+1][j][k].cellVal() + aE*p_star.mesh[i-1][j][k].cellVal() + 
                                              aS*p_star.mesh[i][j+1][k].cellVal() + aN*p_star.mesh[i][j-1][k].cellVal() + 
                                              aF*p_star.mesh[i][j][k+1].cellVal() + aB*p_star.mesh[i][j][k-1].cellVal() +
@@ -113,21 +113,25 @@ void poisson (      volumeField* p,
         l1norm =  l1_norm (*p);
         ratio = ( l1norm -  l1norm_old ) / ( l1norm_old );
         l1norm_old =  l1_norm (p_star);
+        //cout << "ratio  "<< ratio<<"\n";
+
 
     };
     //cout << "convergence achieved in "<< niter<<" iterations\n";
 return;
 };
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void multigrid(volumeField* p, const volumeField& div,
             const double tol, const double rho  ,
             const double dt , const double omega,
-            const double Lx , const double Ly ,
+            const double Lx , const double Ly , const double Lz,
             const int ncycle)
 {
-    int N_x, N_y;
+    int N_x, N_y, N_z;
     N_x = p->dimx;
     N_y = p->dimy;
+    N_z = p->dimz;
 
     double ratio = 1;
     double l1norm, l1norm_old;
@@ -135,6 +139,7 @@ void multigrid(volumeField* p, const volumeField& div,
     // east and west coefficients for discretized Poisson equation
     double aE, aW, aP;
     double aN, aS;
+    double aF, aB;
 
     // initialize mesh pointer to input pointer to pressure
     volumeField p_star;
@@ -151,23 +156,31 @@ void multigrid(volumeField* p, const volumeField& div,
 
         for (int i = 1; i <= N_x; i++) {
             for (int j= 1; j <= N_y; j++) {
+               for (int k= 1; k <= N_z; k++) {
 
-                aP = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() )
-                     - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
+                aP = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[i][ j ][k].zCentroid()) * p_star.mesh[i][j][k].dz() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].zCentroid() - p_star.mesh[i][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() ) ;
 
-                aW = - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() );
-                aE = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() );
+                aE = - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
+                aW = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
 
-                aS = - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
-                aN = - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() );
+                aN = - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j][k].dy() );
+                aS = - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j][k].dy() );
 
-                p->mesh[i][j].setVal( (1.-omega)*p_star.mesh[i][j].cellVal() +
-                                omega/aP * ( aE*p_star.mesh[i+1][j].cellVal() + aW*p_star.mesh[i-1][j].cellVal() + 
-                                             aN*p_star.mesh[i][j+1].cellVal() + aS*p_star.mesh[i][j-1].cellVal() + (rho/dt)*div.mesh[i][j].cellVal()) );
+                aF = - 1./ ( (p_star.mesh[i][j][k].zCentroid() - p_star.mesh[ i ][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() );
+                aB = - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[ i ][j][k].zCentroid()) * p_star.mesh[i][j][k].dz() );
 
+                p->mesh[i][j][k].setVal( (1.-omega)*p_star.mesh[i][j][k].cellVal() +
+                                omega/aP * ( aW*p_star.mesh[i+1][j][k].cellVal() + aE*p_star.mesh[i-1][j][k].cellVal() + 
+                                             aS*p_star.mesh[i][j+1][k].cellVal() + aN*p_star.mesh[i][j-1][k].cellVal() + 
+                                             aF*p_star.mesh[i][j][k+1].cellVal() + aB*p_star.mesh[i][j][k-1].cellVal() +
+                                             (rho/dt)*div.mesh[i][j][k].cellVal()) );
 
+               };
             };
         };
         setBCpFV(p);
@@ -177,29 +190,39 @@ void multigrid(volumeField* p, const volumeField& div,
 
 
     //// compute residual ////
-    volumeField  res      = buildFVfield(N_x, N_y, Lx, Ly);
+    volumeField  res      = buildFVfield(N_x, N_y, N_z, Lx, Ly, Lz);
     initFieldVal(res , 0.0);
 
     for (int i = 1; i <= N_x; i++) {
         for (int j= 1; j <= N_y; j++) {
+            for (int k= 1; k <= N_z; k++) {
+ 
+                aP = - 1./ ( (res.mesh[i+1][j][k].xCentroid() - res.mesh[ i ][j][k].xCentroid()) * res.mesh[i][j][k].dx() )
+                     - 1./ ( (res.mesh[ i ][j][k].xCentroid() - res.mesh[i-1][j][k].xCentroid()) * res.mesh[i][j][k].dx() )
+                     - 1./ ( (res.mesh[i][j+1][k].yCentroid() - res.mesh[i][ j ][k].yCentroid()) * res.mesh[i][j][k].dy() )
+                     - 1./ ( (res.mesh[i][ j ][k].yCentroid() - res.mesh[i][j-1][k].yCentroid()) * res.mesh[i][j][k].dy() )
+                     - 1./ ( (res.mesh[i][j][k+1].zCentroid() - res.mesh[i][ j ][k].zCentroid()) * res.mesh[i][j][k].dz() )
+                     - 1./ ( (res.mesh[i][ j ][k].zCentroid() - res.mesh[i][j][k-1].zCentroid()) * res.mesh[i][j][k].dz() ) ;
 
-                aP = - 1./ ( (res.mesh[i+1][j].xCentroid() - res.mesh[ i ][j].xCentroid()) * res.mesh[i][j].dx() )
-                     - 1./ ( (res.mesh[ i ][j].xCentroid() - res.mesh[i-1][j].xCentroid()) * res.mesh[i][j].dx() )
-                     - 1./ ( (res.mesh[i][j+1].yCentroid() - res.mesh[i][ j ].yCentroid()) * res.mesh[i][j].dy() )
-                     - 1./ ( (res.mesh[i][ j ].yCentroid() - res.mesh[i][j-1].yCentroid()) * res.mesh[i][j].dy() );
+                aW = - 1./ ( (res.mesh[ i ][j][k].xCentroid() - res.mesh[i-1][j][k].xCentroid()) * res.mesh[i][j][k].dx() );
+                aE = - 1./ ( (res.mesh[i+1][j][k].xCentroid() - res.mesh[ i ][j][k].xCentroid()) * res.mesh[i][j][k].dx() );
 
-                aW = - 1./ ( (res.mesh[ i ][j].xCentroid() - res.mesh[i-1][j].xCentroid()) * res.mesh[i][j].dx() );
-                aE = - 1./ ( (res.mesh[i+1][j].xCentroid() - res.mesh[ i ][j].xCentroid()) * res.mesh[i][j].dx() );
+                aS = - 1./ ( (res.mesh[i][ j ][k].yCentroid() - res.mesh[i][j-1][k].yCentroid()) * res.mesh[i][j][k].dy() );
+                aN = - 1./ ( (res.mesh[i][j+1][k].yCentroid() - res.mesh[i][ j ][k].yCentroid()) * res.mesh[i][j][k].dy() );
 
-                aS = - 1./ ( (res.mesh[i][ j ].yCentroid() - res.mesh[i][j-1].yCentroid()) * res.mesh[i][j].dy() );
-                aN = - 1./ ( (res.mesh[i][j+1].yCentroid() - res.mesh[i][ j ].yCentroid()) * res.mesh[i][j].dy() );
+                aF = - 1./ ( (res.mesh[i][j][k].zCentroid() - res.mesh[ i ][j][k-1].zCentroid()) * res.mesh[i][j][k].dz() );
+                aB = - 1./ ( (res.mesh[i][j][k+1].zCentroid() - res.mesh[ i ][j][k].zCentroid()) * res.mesh[i][j][k].dz() );
 
-            res.mesh[i][j].setVal( -aE*p->mesh[i+1][j].cellVal() 
-                                   -aW*p->mesh[i-1][j].cellVal()  
-                                   +aP*p->mesh[i ][j ].cellVal() 
-                                   -aN*p->mesh[i][j+1].cellVal()  
-                                   -aS*p->mesh[i][j-1].cellVal()  
-                                   + (rho/dt)*div.mesh[i][j].cellVal() );
+
+            res.mesh[i][j][k].setVal( -aE*p->mesh[i+1][j][k].cellVal() 
+                                      -aW*p->mesh[i-1][j][k].cellVal()  
+                                      +aP*p->mesh[i ][j ][k].cellVal() 
+                                      -aN*p->mesh[i][j+1][k].cellVal()  
+                                      -aS*p->mesh[i][j-1][k].cellVal()  
+                                      -aF*p->mesh[i][j+1][k].cellVal()  
+                                      -aB*p->mesh[i][j-1][k].cellVal()                                   
+                                   + (rho/dt)*div.mesh[i][j][k].cellVal() );
+            };
         };
     };
     setBCpFV(&res);
@@ -208,11 +231,11 @@ void multigrid(volumeField* p, const volumeField& div,
 
 
     // interpolate res on the coarser grid //
-    volumeField  res_coarser = buildFVfield(N_x/2, N_y/2, Lx, Ly);
+    volumeField  res_coarser = buildFVfield(N_x/2, N_y/2, N_z/2, Lx, Ly, Lz);
     interpolateFieldVal(res , &res_coarser); 
 
     //// solve for the error delta on the coarser grid ////
-    volumeField  delta       = buildFVfield(N_x/2, N_y/2, Lx, Ly);
+    volumeField  delta       = buildFVfield(N_x/2, N_y/2, N_z/2, Lx, Ly, Lz);
     initFieldVal(delta , 0.0);    
     volumeField delta_star;
     delta_star = delta;
@@ -229,21 +252,33 @@ void multigrid(volumeField* p, const volumeField& div,
 
         for (int i = 1; i <= N_x/2; i++) {
             for (int j= 1; j <= N_y/2; j++) {
+                for (int k= 1; k <= N_z/2; k++) {
 
-                aP = - 1./ ( (delta_star.mesh[i+1][j].xCentroid() - delta_star.mesh[ i ][j].xCentroid()) * delta_star.mesh[i][j].dx() )
-                     - 1./ ( (delta_star.mesh[ i ][j].xCentroid() - delta_star.mesh[i-1][j].xCentroid()) * delta_star.mesh[i][j].dx() )
-                     - 1./ ( (delta_star.mesh[i][j+1].yCentroid() - delta_star.mesh[i][ j ].yCentroid()) * delta_star.mesh[i][j].dy() )
-                     - 1./ ( (delta_star.mesh[i][ j ].yCentroid() - delta_star.mesh[i][j-1].yCentroid()) * delta_star.mesh[i][j].dy() );
+                aP = - 1./ ( (delta_star.mesh[i+1][j][k].xCentroid() - delta_star.mesh[ i ][j][k].xCentroid()) * delta_star.mesh[i][j][k].dx() )
+                     - 1./ ( (delta_star.mesh[ i ][j][k].xCentroid() - delta_star.mesh[i-1][j][k].xCentroid()) * delta_star.mesh[i][j][k].dx() )
+                     - 1./ ( (delta_star.mesh[i][j+1][k].yCentroid() - delta_star.mesh[i][ j ][k].yCentroid()) * delta_star.mesh[i][j][k].dy() )
+                     - 1./ ( (delta_star.mesh[i][ j ][k].yCentroid() - delta_star.mesh[i][j-1][k].yCentroid()) * delta_star.mesh[i][j][k].dy() )
+                     - 1./ ( (delta_star.mesh[i][j][k+1].zCentroid() - delta_star.mesh[i][ j ][k].zCentroid()) * delta_star.mesh[i][j][k].dz() )
+                     - 1./ ( (delta_star.mesh[i][ j ][k].zCentroid() - delta_star.mesh[i][j][k-1].zCentroid()) * delta_star.mesh[i][j][k].dz() ) ;
 
-                aW = - 1./ ( (delta_star.mesh[ i ][j].xCentroid() - delta_star.mesh[i-1][j].xCentroid()) * delta_star.mesh[i][j].dx() );
-                aE = - 1./ ( (delta_star.mesh[i+1][j].xCentroid() - delta_star.mesh[ i ][j].xCentroid()) * delta_star.mesh[i][j].dx() );
+                aW = - 1./ ( (delta_star.mesh[ i ][j][k].xCentroid() - delta_star.mesh[i-1][j][k].xCentroid()) * delta_star.mesh[i][j][k].dx() );
+                aE = - 1./ ( (delta_star.mesh[i+1][j][k].xCentroid() - delta_star.mesh[ i ][j][k].xCentroid()) * delta_star.mesh[i][j][k].dx() );
 
-                aS = - 1./ ( (delta_star.mesh[i][ j ].yCentroid() - delta_star.mesh[i][j-1].yCentroid()) * delta_star.mesh[i][j].dy() );
-                aN = - 1./ ( (delta_star.mesh[i][j+1].yCentroid() - delta_star.mesh[i][ j ].yCentroid()) * delta_star.mesh[i][j].dy() );
+                aS = - 1./ ( (delta_star.mesh[i][ j ][k].yCentroid() - delta_star.mesh[i][j-1][k].yCentroid()) * delta_star.mesh[i][j][k].dy() );
+                aN = - 1./ ( (delta_star.mesh[i][j+1][k].yCentroid() - delta_star.mesh[i][ j ][k].yCentroid()) * delta_star.mesh[i][j][k].dy() );
 
-                delta.mesh[i][j].setVal( (1.-omega)*delta_star.mesh[i][j].cellVal() +
-                                omega/aP * ( aE*delta_star.mesh[i+1][j].cellVal() + aW*delta_star.mesh[i-1][j].cellVal() + 
-                                             aN*delta_star.mesh[i][j+1].cellVal() + aS*delta_star.mesh[i][j-1].cellVal() + res_coarser.mesh[i][j].cellVal()) );
+                aF = - 1./ ( (delta_star.mesh[i][j][k].zCentroid() - delta_star.mesh[ i ][j][k-1].zCentroid()) * delta_star.mesh[i][j][k].dz() );
+                aB = - 1./ ( (delta_star.mesh[i][j][k+1].zCentroid() - delta_star.mesh[ i ][j][k].zCentroid()) * delta_star.mesh[i][j][k].dz() );
+
+                delta.mesh[i][j][k].setVal( (1.-omega)*delta_star.mesh[i][j][k].cellVal() +
+                                omega/aP * ( aE*delta_star.mesh[i+1][j][k].cellVal() + 
+                                             aW*delta_star.mesh[i-1][j][k].cellVal() + 
+                                             aN*delta_star.mesh[i][j+1][k].cellVal() + 
+                                             aS*delta_star.mesh[i][j-1][k].cellVal() + 
+                                             aN*delta_star.mesh[i][j][k+1].cellVal() + 
+                                             aS*delta_star.mesh[i][j][k-1].cellVal() +                                       
+                                             res_coarser.mesh[i][j][k].cellVal())    );
+                };
             };
         };
         setBCerrFV(&delta);
@@ -258,7 +293,7 @@ void multigrid(volumeField* p, const volumeField& div,
 
     
     // prolongate back the error delta on the finer grid //
-    volumeField  delta_finer   = buildFVfield(N_x, N_y, Lx, Ly);  
+    volumeField  delta_finer   = buildFVfield(N_x, N_y, N_z, Lx, Ly, Lz);  
     prolongateFieldVal(delta , &delta_finer);     
  
     // add the the error delta on the smoothed solution //
@@ -277,23 +312,34 @@ void multigrid(volumeField* p, const volumeField& div,
 
         for (int i = 1; i <= N_x; i++) {
             for (int j= 1; j <= N_y; j++) {
+                   for (int k= 1; k <= N_z; k++) {
 
-                aP = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() )
-                     - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
+                aP = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() )
+                     - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j][k].dy() )
+                     - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[i][ j ][k].zCentroid()) * p_star.mesh[i][j][k].dz() )
+                     - 1./ ( (p_star.mesh[i][ j ][k].zCentroid() - p_star.mesh[i][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() ) ;                     
 
-                aW = - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() );
-                aE = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() );
+                aW = - 1./ ( (p_star.mesh[ i ][j][k].xCentroid() - p_star.mesh[i-1][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
+                aE = - 1./ ( (p_star.mesh[i+1][j][k].xCentroid() - p_star.mesh[ i ][j][k].xCentroid()) * p_star.mesh[i][j][k].dx() );
 
-                aS = - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
-                aN = - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() );
+                aS = - 1./ ( (p_star.mesh[i][ j ][k].yCentroid() - p_star.mesh[i][j-1][k].yCentroid()) * p_star.mesh[i][j][k].dy() );
+                aN = - 1./ ( (p_star.mesh[i][j+1][k].yCentroid() - p_star.mesh[i][ j ][k].yCentroid()) * p_star.mesh[i][j][k].dy() );
 
-                p->mesh[i][j].setVal( (1.-omega)*p_star.mesh[i][j].cellVal() +
-                                omega/aP * ( aE*p_star.mesh[i+1][j].cellVal() + aW*p_star.mesh[i-1][j].cellVal() + 
-                                             aN*p_star.mesh[i][j+1].cellVal() + aS*p_star.mesh[i][j-1].cellVal() + (rho/dt)*div.mesh[i][j].cellVal()) );
+                aF = - 1./ ( (p_star.mesh[i][j][k].zCentroid() - p_star.mesh[ i ][j][k-1].zCentroid()) * p_star.mesh[i][j][k].dz() );
+                aB = - 1./ ( (p_star.mesh[i][j][k+1].zCentroid() - p_star.mesh[ i ][j][k].zCentroid()) * p_star.mesh[i][j][k].dz() );
 
+                p->mesh[i][j][k].setVal( (1.-omega)*p_star.mesh[i][j][k].cellVal() +
+                                omega/aP * ( aE*p_star.mesh[i+1][j][k].cellVal() + 
+                                             aW*p_star.mesh[i-1][j][k].cellVal() + 
+                                             aN*p_star.mesh[i][j+1][k].cellVal() +
+                                             aS*p_star.mesh[i][j-1][k].cellVal() + 
+                                             aN*p_star.mesh[i][j][k+1].cellVal() + 
+                                             aS*p_star.mesh[i][j][k-1].cellVal() +                                               
+                                             (rho/dt)*div.mesh[i][j][k].cellVal()) );
 
+                 };
             };
         };
         setBCpFV(p);
@@ -311,6 +357,7 @@ void multigrid(volumeField* p, const volumeField& div,
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
 void multigrid_rec(volumeField* p, const volumeField& div,
             const double tol, const double rho  ,
             const double dt , const double omega,
@@ -501,3 +548,4 @@ void multigrid_rec(volumeField* p, const volumeField& div,
 
     return;
 };
+*/

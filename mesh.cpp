@@ -110,6 +110,7 @@ volumeField volumeField::operator*(double scalar_val)
  };
 
 ////////////////////////////////////////////////////////////////
+/*
 FVcell** buildMesh (int N_x, int N_y, int N_z, double L_x, double L_y, double L_z)
 {
  // index i spans the y-direction
@@ -148,22 +149,11 @@ FVcell** buildMesh (int N_x, int N_y, int N_z, double L_x, double L_y, double L_
     }
 
 
-/*
- FVcell ***mesh_p = new FVcell** [N_x+2];
- for (int i = 0; i <= N_x+1; i++)
- {       
-   *mesh_p[i] = new FVcell [N_y+2][N_z+2];
-   for(int j = 0; j<= N_y+1; j++)
-   {       
-     // yj=1−tanh[γ(1–2jN2)]tanh(γ)               //(j=0,…,N2),(3)
-    mesh_p[i][j].setCellPos( L_y/N_y/2. +  (L_y/N_y)*(i-1), L_x/N_x/2. + (L_x/N_x)*(j-1), L_y/N_y, L_x/N_x  );
-   }     
- }       
-*/
  return mesh_p;
-};
+}; 
+*/
 ////////////////////////////////////////////////////////////////
-volumeField buildFVfield (int N_x, int N_y, int N_z, double L_x, double L_y, double Lz)
+volumeField buildFVfield (int N_x, int N_y, int N_z, double L_x, double L_y, double L_z)
 {
  // index i spans the y-direction
  // index j spans the x-direction
@@ -178,7 +168,7 @@ volumeField buildFVfield (int N_x, int N_y, int N_z, double L_x, double L_y, dou
  volumeField field;
  double gamma;
  gamma  = 1.;
- FVcell **mesh_p = new FVcell* [N_x+2];
+ //FVcell **mesh_p = new FVcell* [N_x+2];
 
   for (int i = 0; i <= N_x+1; i++)
   {  
@@ -233,20 +223,21 @@ volumeField buildFVfield (int N_x, int N_y, int N_z, double L_x, double L_y, dou
  
             // Allocate memory blocks for
             // columns of each 2D array
-            mesh_p[i][j] = new int[N_z+2];
+            mesh_p[i][j] = new FVcell[N_z+2];
         }
     }
 
-    for (int i = 0; i < N_x; i++) {
-        for (int j = 0; j < N_y; j++) {
-            for (int k = 0; k < N_z; k++) {
+    for (int i = 0; i <= N_x+1; i++) {
+        for (int j = 0; j <= N_y+1; j++) {
+            for (int k = 0; k <= N_z+1; k++) {
  
                 // Assign values to the
                 // memory blocks created
-                 mesh_p[i][j][k].setCellPos( L_x/N_x/2. + (L_x/N_x)*(i-1), 
-                                             L_y/N_y/2. + (L_y/N_y)*(j-1), 
-                                             L_z/N_z/2. + (L_z/N_z)*(k-1),
-                                             L_y/N_y, L_x/N_x, L_z/N_z  );
+                 double dx = xf[i]  - xf[i-1];   
+                 double dy = yf[j]  - yf[j-1];    
+                 double dz = zf[k]  - zf[k-1];     
+ 
+                 mesh_p[i][j][k].setCellPos( xc[i], yc[j], zc[k], dx, dy, dz  );
             }
         }
     }
@@ -340,6 +331,10 @@ void setBCuFV (volumeField* field)
 
  return;
 };
+
+
+
+
 ////////////////////////////////////////////////////////////////
 void setBCvFV (volumeField* field)
 {
@@ -409,8 +404,8 @@ void setBCwFV (volumeField* field)
  {
    for (int k = 0; k <= N_z+1; k++)
     {
-     field->mesh[i][N_y+1][k].setVal(- field->mesh[i][N_y-1][k].cellVal() );
-     field->mesh[i][0][k].setVal(0 );
+     field->mesh[i][N_y+1][k].setVal(- field->mesh[i][N_y][k].cellVal() );
+     field->mesh[i][  0  ][k].setVal(- field->mesh[i][  1][k].cellVal() );
     }
  }
 
@@ -419,8 +414,8 @@ void setBCwFV (volumeField* field)
  {
   for (int j = 0; j <= N_y+1; j++)
   {
-    field->mesh[i][ j ][N_z].setVal(0);
-    field->mesh[i][  j  ][0].setVal(0);
+    field->mesh[i][j][N_z].setVal(0);
+    field->mesh[i][j][0].setVal(0);
     field->mesh[i][j][N_z+1].setVal(     - field->mesh[i][j][N_z-1].cellVal() ) ;
   }
  }
@@ -480,9 +475,9 @@ void divergence (volumeField* div, const volumeField  Ux_pred, const volumeField
  for (int i = 1; i<=N_x; i++) {
   for (int j = 1; j<=N_y; j++) {
    for (int k = 1; k<=N_z; k++) {
-        div->mesh[i][j].setVal( ( Ux_pred.mesh[i][ j ][k].cellVal() - Ux_pred.mesh[i-1][j][k].cellVal() ) / Ux_pred.mesh[i][j][k].dx() +
-                                ( Uy_pred.mesh[ i ][j][k].cellVal() - Uy_pred.mesh[i][j-1][k].cellVal() ) / Uy_pred.mesh[i][j][k].dy() +
-                                ( Uz_pred.mesh[ i ][j][k].cellVal() - Uz_pred.mesh[i][j-1][k].cellVal() ) / Uz_pred.mesh[i][j][k].dz() ); 
+        div->mesh[i][j][k].setVal( ( Ux_pred.mesh[i][j][k].cellVal() - Ux_pred.mesh[i-1][j][k].cellVal() ) / Ux_pred.mesh[i][j][k].dx() +
+                                   ( Uy_pred.mesh[i][j][k].cellVal() - Uy_pred.mesh[i][j-1][k].cellVal() ) / Uy_pred.mesh[i][j][k].dy() +
+                                   ( Uz_pred.mesh[i][j][k].cellVal() - Uz_pred.mesh[i][j][k-1].cellVal() ) / Uz_pred.mesh[i][j][k].dz() ); 
     };
   };
 };
@@ -501,7 +496,7 @@ void setBCneumannFV (volumeField* p)
  double val = 0;
 
  // along x-planes        
- for (int k = 1; i<=N_z; k++) {
+ for (int k = 1; k<=N_z; k++) {
   for (int j = 1; j<=N_y; j++)  {
 
     p->mesh[  0  ][j][k].setVal(  p->mesh[ 1 ][j][k].cellVal()  );
@@ -509,7 +504,7 @@ void setBCneumannFV (volumeField* p)
  }
  }
  // along y-planes        
- for (int k = 1; i<=N_z; k++) {
+ for (int k = 1; k<=N_z; k++) {
   for (int i = 1; i<=N_x; i++) {
     p->mesh[i][  0  ][k].setVal( p->mesh[i][ 1   ][k].cellVal() );
     p->mesh[i][N_y+1][k].setVal( p->mesh[i][ N_y ][k].cellVal() );
@@ -528,15 +523,16 @@ void setBCneumannFV (volumeField* p)
 void setBCerrFV (volumeField* p)
 {
  // set wall boundary condition for pressure  
- int N_x, N_y;
+ int N_x, N_y, N_z;
 
  N_x = p->dimx;
  N_y = p->dimy;
+ N_z = p->dimz;
 
  double val = 0;
 
  // along x-planes        
- for (int k = 1; i<=N_z; k++) {
+ for (int k = 1; k<=N_z; k++) {
   for (int j = 1; j<=N_y; j++)  {
 
     p->mesh[  0  ][j][k].setVal(-p->mesh[ 1 ][j][k].cellVal()  );
@@ -544,7 +540,7 @@ void setBCerrFV (volumeField* p)
   }
  }
  // along y-planes        
- for (int k = 1; i<=N_z; k++) {
+ for (int k = 1; k<=N_z; k++) {
   for (int i = 1; i<=N_x; i++) {
     p->mesh[i][  0  ][k].setVal(-p->mesh[i][ 1   ][k].cellVal() );
     p->mesh[i][N_y+1][k].setVal(-p->mesh[i][ N_y ][k].cellVal() );
@@ -621,6 +617,7 @@ void interpolateFieldVal(const volumeField& field_fine, volumeField* field_coars
                                field_fine.mesh[ i_f ][ j_f ][k_f+1].cellVal() );
 
         field_coarse->mesh[i_c][j_c][k_c].setVal(local_value); 
+     };
   };
 }; 
 return;

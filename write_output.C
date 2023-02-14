@@ -9,13 +9,13 @@
 #include <stdlib.h>
 //#include "finiteVolume.C"
 
-void write_output(const volumeField& vel_x, const volumeField& vel_y, const volumeField& p, std::string namefile)
+void write_output(const volumeField& vel_x, const volumeField& vel_y, const volumeField& vel_z, const volumeField& p, std::string namefile)
 {
 
     FILE *fid;
     int Nx = vel_x.dimx;
     int Ny = vel_x.dimy; 
-    int Nz = 1; //field.dimz; 
+    int Nz = vel_x.dimz;  
 
     std::string file = namefile + ".vtk";
     fid = fopen (file.c_str(), "w");
@@ -30,9 +30,12 @@ void write_output(const volumeField& vel_x, const volumeField& vel_y, const volu
     {
       for (int j=1;j<=Ny;j++)
       {
-        fprintf(fid,"%16.7e %16.7e %16.7e\n",vel_x.mesh[i][j].xCentroid(), 
-                                             vel_y.mesh[i][j].yCentroid(),
-                                             0.);
+              for (int k=1;k<=Nz;k++)
+      {
+        fprintf(fid,"%16.7e %16.7e %16.7e\n",vel_x.mesh[i][j][k].xCentroid(), 
+                                             vel_y.mesh[i][j][k].yCentroid(),
+                                             vel_z.mesh[i][j][k].zCentroid());
+      };
       };
     };
 
@@ -48,9 +51,12 @@ void write_output(const volumeField& vel_x, const volumeField& vel_y, const volu
     {
         for (int j=1; j<=Ny; j++)
         {
-            fprintf (fid,"%16.7e %16.7e %16.7e\n", 0.5 * (vel_x.mesh[i][j].cellVal() + vel_x.mesh[i-1][ j ].cellVal()),
-                                                   0.5 * (vel_y.mesh[i][j].cellVal() + vel_y.mesh[ i ][j-1].cellVal()),
-                                                   0.0);
+           for (int k=1; k<=Nz; k++)
+           {
+            fprintf (fid,"%16.7e %16.7e %16.7e\n", 0.5 * (vel_x.mesh[i][j][k].cellVal() + vel_x.mesh[i-1][ j ][k].cellVal()),
+                                                   0.5 * (vel_y.mesh[i][j][k].cellVal() + vel_y.mesh[ i ][j-1][k].cellVal()),
+                                                   0.5 *(vel_z.mesh[i][j][k].cellVal() + vel_z.mesh[ i ][j][k-1].cellVal()));
+           };
         };
     };
 
@@ -63,7 +69,10 @@ void write_output(const volumeField& vel_x, const volumeField& vel_y, const volu
     {
         for (int j=1;j<=Ny;j++)
         {
-            fprintf (fid,"%16.7e\n", p.mesh[i][j].cellVal());
+            for (int k=1; k<=Nz; k++)
+            {
+              fprintf (fid,"%16.7e\n", p.mesh[i][j][k].cellVal());
+            }
         };
     };
     

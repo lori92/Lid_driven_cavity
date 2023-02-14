@@ -9,16 +9,16 @@
 #include "mesh.cpp"
 #include "poisson.cpp"
 #include "finiteVolume.cpp"
-#include "predictor_step.cpp"
+//#include "predictor_step.cpp"
 
 #include "write_output.C"
 
 using namespace std;
 
 /// number of internal cells (without ghost nodes) ///
-#define Nx 76
-#define Ny 76
-#define Nz 76
+#define Nx 25
+#define Ny 25
+#define Nz 25
 
 int main()
 {
@@ -27,7 +27,6 @@ int main()
  const double Ly = 1;
  const double Lz = 1;
 
- FVcell ***mesh      = buildMesh(Nx, Ny, Nz, Lx, Ly, Lz);
 
  volumeField Ux     = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
  volumeField Uy     = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
@@ -74,6 +73,8 @@ fclose(OutFile_meshz);
 
  initFieldVal(div , 0);
 
+
+
  volumeField  conv_u_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
  volumeField  conv_v_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
  volumeField  conv_w_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
@@ -91,9 +92,9 @@ fclose(OutFile_meshz);
  double rho_f, rho_b;
 
 
- dt = 0.5e-3;
+ dt = 0.1e-3;
  double t0   = 0.;
- double tend = 100;
+ double tend = 1;
  double t;
 
  list<volumeField> Ux_time_series;
@@ -101,12 +102,16 @@ fclose(OutFile_meshz);
  list<volumeField> Uz_time_series;
 
  list<volumeField>  p_time_series;
-  
+
+ 
  t = t0;
 
  setBCuFV(&Ux);
  setBCvFV(&Uy);
- setBCvFV(&Uz);
+ setBCwFV(&Uz);
+
+  write_output(Ux , Uy , Uz , p , "0_coarse_grid");
+
 
  double dt_write = 0.1;
  double t_last   = 0;
@@ -134,6 +139,7 @@ fclose(OutFile_meshz);
   diffusion_v_expl (&diff_v_expl, Ux, Uy, Uz, mu); 
   diffusion_w_expl (&diff_w_expl, Ux, Uy, Uz, mu); 
 
+/*
    predictor_u (&Ux_star, Ux, Uy, Uz, 
                conv_u_expl, 
                diff_u_expl, 
@@ -149,13 +155,15 @@ fclose(OutFile_meshz);
                conv_w_expl, 
                diff_w_expl, rho, dt, mu, 1e-10, n_iter_w);
   cout << "Uz iterations: "<< n_iter_w<<" iterations\n"; 
-  
-
+ */ 
+  Ux_star =   Ux+(conv_u_expl*(-1./rho) + diff_u_expl*(1./rho) )*dt ;
+  Uy_star =   Uy+(conv_v_expl*(-1./rho) + diff_v_expl*(1./rho) )*dt ;
+  Uz_star =   Uz+(conv_w_expl*(-1./rho) + diff_w_expl*(1./rho) )*dt ;
   cout<<"\n";
 
   setBCuFV(&Ux_star);
   setBCvFV(&Uy_star);
-  setBCvFV(&Uz_star);
+  setBCwFV(&Uz_star);
 
   ///////// compute divergence of predictor steps field /////////
   divergence(&div, Ux_star, Uy_star, Uz_star);
@@ -167,27 +175,29 @@ fclose(OutFile_meshz);
  //   multigrid(&p, div, 1e-14, rho, dt, 1.3, Lx, Ly, 2);
   //}
   //else {
-     poisson(&p, div, rho, dt, 1e-14, 0.7, n_iter_ssor);
+     poisson(&p, div, rho, dt, 1e-12, 1.1, n_iter_ssor);
     cout << "convergence achieved on pressure in "<< n_iter_ssor <<" iterations\n";//}
+
+
 
   /////// corrector step: projet the predicted velocity field in a div free space ////////
   correct (&Ux, &Uy, &Uz, Ux_star, Uy_star, Uz_star, p, rho, dt); 
   setBCuFV(&Ux);
   setBCvFV(&Uy);
-  setBCvFV(&Uz);
+  setBCwFV(&Uz);
 
 
   divergence(&div, Ux, Uy, Uz);
   cout << "mass imbalance after correction "<< l1_norm(div)<<"\n";
 
-  if (t - t_last > dt_write)
+  if (t - t_last > dt)
   {
     n_file ++;
     std::stringstream ss;
     ss << std::setw(10) << std::setfill('0') << n_file;
     std::string namefile = ss.str();
 
-     write_output(Ux, Uy, p, namefile);
+     write_output(Ux, Uy, Uz, p, namefile);
      t_last = t;
   
  }
@@ -208,7 +218,6 @@ fclose(OutFile_meshz);
  interpolateFieldVal(Uz , &Uz_coarser); 
 
  interpolateFieldVal(p  , &p_coarser); 
- write_output(Ux_coarser, Uy_coarser, Uz_coarser, p_coarser, "0_coarse_grid");
 
 
       // prolongate on the coarser grid //
@@ -218,15 +227,14 @@ fclose(OutFile_meshz);
 
  volumeField  p_prl  = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
 
- prolongateFieldVal(Ux_coarser , &Ux_prl); 
+ /*prolongateFieldVal(Ux_coarser , &Ux_prl); 
  prolongateFieldVal(Uy_coarser , &Uy_prl); 
  prolongateFieldVal(Uz_coarser , &Uz_prl); 
 
  prolongateFieldVal(p_coarser , &p_prl); 
  write_output(Ux_prl, Uy_prl, Uz_prl, p_prl, "0_fine_grid");
+*/
 
-
- free(mesh);
  free(Ux.mesh);
  free(Uy.mesh);
  free(Uz.mesh);

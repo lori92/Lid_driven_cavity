@@ -156,8 +156,8 @@ void convection_w_expl (volumeField* conv, const volumeField& Ux, const volumeFi
                           (Uz.mesh[i][j][ k ].cellVal() + Uz.mesh[i][j][k-1].cellVal() );
 
 
-     conv->mesh[i][j][k].setVal(   (fVU_f - fVU_b) / (Uz.mesh[i][j][k].dx())  
-                                 + (fVV_f - fVV_b) / (Uz.mesh[i][j][k].dy()) 
+     conv->mesh[i][j][k].setVal(   (fWU_f - fWU_b) / (Uz.mesh[i][j][k].dx())  
+                                 + (fWV_f - fWV_b) / (Uz.mesh[i][j][k].dy()) 
                                  + (fWW_f - fWW_b) / (Uz.mesh[i][j][k+1].zCentroid() - Uz.mesh[i][j][k].zCentroid()) ); 
       };
     };
@@ -241,7 +241,7 @@ void diffusion_v_expl (volumeField* diff, const volumeField& Ux, const volumeFie
      dV_dz_b = mu * (  (Uy.mesh[i][j][ k ].cellVal() - Uy.mesh[i][j][k-1].cellVal()) / (Uy.mesh[i][j][ k ].zCentroid() - Uy.mesh[i][j][k-1].zCentroid() ) );
      ddV_dzz = (dV_dz_f - dV_dz_b) / (Uy.mesh[i][j][k].dz());
 
-     diff->mesh[i][j][k].setVal( ddV_dxx + ddV_dyy + ddW_dzz); 
+     diff->mesh[i][j][k].setVal( ddV_dxx + ddV_dyy + ddV_dzz); 
      };
     };
   };
@@ -275,14 +275,14 @@ void diffusion_w_expl (volumeField* diff, const volumeField& Ux, const volumeFie
      dW_dy_f = mu * (  (Uz.mesh[i][j+1][k].cellVal() - Uz.mesh[i][ j ][k].cellVal()) / 
                        (Uz.mesh[i][j+1][k].yCentroid() - Uz.mesh[i][j][k].yCentroid())  );
      dW_dy_b = mu * (  (Uz.mesh[i][ j ][k].cellVal() - Uz.mesh[i][j-1][k].cellVal()) /         
-                       (Uz.mesh[i][ j ][k].yCentroid() - Uz.mesh[i][j][k].zCentroid())  );
+                       (Uz.mesh[i][ j ][k].yCentroid() - Uz.mesh[i][j-1][k].yCentroid())  );
      ddW_dyy = (dW_dy_f - dW_dy_b) / (Uz.mesh[i][j+1][k].dy());
 
      dW_dz_f = mu * (  (Uz.mesh[i][j][k+1].cellVal() - Uz.mesh[i][ j ][k].cellVal()) / (Uz.mesh[i][j][k+1].dz() ) );
      dW_dz_b = mu * (  (Uz.mesh[i][j][ k ].cellVal() - Uz.mesh[i][j][k-1].cellVal()) / (Uz.mesh[i][j][ k ].dz() ) );
      ddW_dzz = (dW_dz_f - dW_dz_b) / (Uz.mesh[i][j][k+1].zCentroid() - Uz.mesh[i][j][k].zCentroid());
 
-     diff->mesh[i][j][k].setVal( ddV_dxx + ddV_dyy + ddW_dzz); 
+     diff->mesh[i][j][k].setVal( ddW_dxx + ddW_dyy + ddW_dzz); 
      };
     };
   };
