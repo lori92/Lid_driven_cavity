@@ -2,245 +2,235 @@
 #include <cmath>
 #include <list>
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
+#include "global_variables.h"
+
 #include "mesh.cpp"
+#include "poisson.cpp"
+#include "finiteVolume.cpp"
+#include "predictor_step.cpp"
+
+#include "write_output.C"
+
 using namespace std;
 
-/// number of cells (without ghost nodes) ///
-#define Nx 50
-#define Ny 50
-
-
-///////////////////////////////////////////////////////////////////////////////////////////
-double l1_norm(volumeField const field)
-{
-
-    int N_x = field.dimx;
-    int N_y = field.dimy;
-
-    double accum = 0.;
-
-    for (int i = 1; i <= N_x; ++i)
-    {
-         for (int j= 1; j <= N_y; ++j)
-         {
-          accum += abs( field.mesh[i][j].cellVal() ) ;
-         };
-    };
-    return sqrt(accum);
-};
-/////////////////////////////////////////////////////////////////////////////////////////////
-void poisson (volumeField* p, volumeField const Ux_pred, volumeField const Uy_pred, double tol, double omega)
-{
-    double ratio = 1;
-    double l1norm, l1norm_old;
-
-    int N_x, N_y;
-    N_x = p->dimx;
-    N_y = p->dimy;
-
-    // east and west coefficients for discretized Poisson equation
-    double aE, aW, aP;
-    double aN, aS;
-
-    // initialize mesh pointer to input pointer to pressure
-    volumeField p_star;
-    p_star = *p;
- 
-    setBCpFV(&p_star);
-    int niter = 0;
-
-//    cout << "start poisson iterations....\n";
-
-    while (ratio > tol)
-    {
-        p_star.mesh = p->mesh;
-  //      cout << "update old pressure....\n";
-
-        l1norm_old =  l1_norm (p_star);
-        cout << "computing l1- norm....\n";
-
-        niter+= 1;
-
-        for (int i = 1; i <= N_x; ++i) {
-            for (int j= 1; j <= N_y; ++j) {
-
-                aP = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() )
-                     - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() )
-                     - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
-
-                aW = - 1./ ( (p_star.mesh[ i ][j].xCentroid() - p_star.mesh[i-1][j].xCentroid()) * p_star.mesh[i][j].dx() );
-                aE = - 1./ ( (p_star.mesh[i+1][j].xCentroid() - p_star.mesh[ i ][j].xCentroid()) * p_star.mesh[i][j].dx() );
-
-                aS = - 1./ ( (p_star.mesh[i][ j ].yCentroid() - p_star.mesh[i][j-1].yCentroid()) * p_star.mesh[i][j].dy() );
-                aN = - 1./ ( (p_star.mesh[i][j+1].yCentroid() - p_star.mesh[i][ j ].yCentroid()) * p_star.mesh[i][j].dy() );
-
-                p->mesh[i][j].setVal( (1.-omega)*p_star.mesh[i][j].cellVal() + omega/aP * ( aE*p_star.mesh[i+1][j].cellVal() + aW*p_star.mesh[i-1][j].cellVal() + aN*p_star.mesh[i][j+1].cellVal() + aS*p_star.mesh[i][j-1].cellVal())   );
-
-
-            };
-        };
-        setBCpFV(p);
-        l1norm =  l1_norm (*p);
-        ratio = ( l1norm -  l1norm_old ) / ( l1norm_old + 1e-10);
-    };
-    cout << "convergence achieved in "<< niter<<" iterations\n";
-return;
-};
-////////////////////////////////////////////////////////////////////////////////////////////////////
+/// number of internal cells (without ghost nodes) ///
+#define Nx 76
+#define Ny 76
+#define Nz 76
 
 int main()
 {
 
- const double Lx = 50;
- const double Ly = 50;
+ const double Lx = 1;
+ const double Ly = 1;
+ const double Lz = 1;
 
- FVcell **mesh      = buildMesh(Nx, Ny, Lx, Ly);
+ FVcell ***mesh      = buildMesh(Nx, Ny, Nz, Lx, Ly, Lz);
 
- volumeField Ux     = buildFVfield(Nx, Ny, Lx, Ly);
- volumeField Uy     = buildFVfield(Nx, Ny, Lx, Ly);
- volumeField Ux_star= buildFVfield(Nx, Ny, Lx, Ly);
- volumeField Uy_star= buildFVfield(Nx, Ny, Lx, Ly);
+ volumeField Ux     = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField Uy     = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField Uz     = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
 
- volumeField p      = buildFVfield(Nx, Ny, Lx, Ly);
+ volumeField Ux_star= buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField Uy_star= buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField Uz_star= buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField div    = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+
+ volumeField p      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+
+
+
+ FILE *OutFile_meshx = fopen("x.dat","w++");
+ 
+   for(int i=1; i<=Nx; i++){
+       double x = (Uy.mesh[i][0][0].xFace(1) );
+      fprintf(OutFile_meshx,"\n %f ", x); }  
+
+fclose(OutFile_meshx);
+
+ FILE *OutFile_meshy = fopen("y.dat","w++");
+ 
+   for(int j=1; j<=Ny; j++){
+       double y = (Uy.mesh[0][j][0].yFace(1) );
+      fprintf(OutFile_meshy,"\n %f ", y); }  
+
+fclose(OutFile_meshy);
+
+ FILE *OutFile_meshz = fopen("z.dat","w++");
+ 
+   for(int k=1; k<=Nz; k++){
+       double z = (Uz.mesh[0][0][k].zFace(1) );
+      fprintf(OutFile_meshz,"\n %f ", z); }  
+
+fclose(OutFile_meshz);
 
  // initialize initial fiels
  initFieldVal(Ux, 0);
  initFieldVal(Uy, 0);
+ initFieldVal(Uz, 0);
  initFieldVal(p , 0);
 
- // impose boundary conditions on initial fields
- setBCuFV(&Ux);
- setBCvFV(&Uy);
- setBCpFV( &p);
+ initFieldVal(div , 0);
 
- double fUU_f, fUU_b;
- double fUV_f, fUV_b;
+ volumeField  conv_u_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  conv_v_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  conv_w_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
 
- double fVU_f, fVU_b;
- double fVV_f, fVV_b;
+ volumeField  diff_u_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  diff_v_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  diff_w_expl      = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
 
- double ddU_dxx, dU_dx_f, dU_dx_b;
- double ddU_dyy, dU_dy_f, dU_dy_b;
-
- double ddV_dxx, dV_dx_f, dV_dx_b;
- double ddV_dyy, dV_dy_f, dV_dy_b;
-
- double conv_u, conv_v;
- double diff_u, diff_v;
 
  double mu;
+ mu = 0.001;
  double dt;
  double rho;
+ rho = 1;
+ double rho_f, rho_b;
 
- dt = 0.001;
+
+ dt = 0.5e-3;
  double t0   = 0.;
- double tend = 0.;
+ double tend = 100;
  double t;
 
  list<volumeField> Ux_time_series;
  list<volumeField> Uy_time_series;
+ list<volumeField> Uz_time_series;
+
  list<volumeField>  p_time_series;
   
  t = t0;
 
+ setBCuFV(&Ux);
+ setBCvFV(&Uy);
+ setBCvFV(&Uz);
+
+ double dt_write = 0.1;
+ double t_last   = 0;
+ int n_file = 0;
+ n_iter_ssor = 0;
+ int n_iter=0;
+
+// write first initialized field 
+ std::stringstream ss;
+ ss << std::setw(10) << std::setfill('0') << n_file;
+ std::string namefile = ss.str();
+
  while (t<=tend)
  {
- t = t + dt;
+  t = t + dt;
+ 
+  cout << " -- time = "<<t<<" ---\n";
+  cout << "\n";
+ 
+  convection_u_expl (&conv_u_expl, Ux, Uy, Uz, rho);
+  convection_v_expl (&conv_v_expl, Ux, Uy, Uz, rho);
+  convection_w_expl (&conv_w_expl, Ux, Uy, Uz, rho);
+ 
+  diffusion_u_expl (&diff_u_expl, Ux, Uy, Uz, mu);
+  diffusion_v_expl (&diff_v_expl, Ux, Uy, Uz, mu); 
+  diffusion_w_expl (&diff_w_expl, Ux, Uy, Uz, mu); 
 
- for (int i = 1; i <= Nx; i++)
- {
-   for(int j = 1; j<= Ny; j++)
-   {
+   predictor_u (&Ux_star, Ux, Uy, Uz, 
+               conv_u_expl, 
+               diff_u_expl, 
+               rho, dt, mu, 1e-10, n_iter_u); 
+  cout << "Ux iterations: "<< n_iter_u<<" iterations\n";
+ 
+  predictor_v (&Uy_star, Ux, Uy, Uz, 
+               conv_v_expl, 
+               diff_v_expl, rho, dt, mu, 1e-10, n_iter_v);
+  cout << "Uy iterations: "<< n_iter_v<<" iterations\n"; 
 
-     //// convective term d(uu)/dx +  d(uv)/dy -- u-control volume	   
-     fUU_f = 0.25 * (Ux.mesh[i][j].cellVal() + Ux.mesh[i][j].cellVal()) *(Ux.mesh[i+1][j].cellVal() + Ux.mesh[i+1][j].cellVal());
-     fUU_b = 0.25 * (Ux.mesh[i][j].cellVal() + Ux.mesh[i][j].cellVal()) *(Ux.mesh[i-1][j].cellVal() + Ux.mesh[i-1][j].cellVal());
+  predictor_w (&Uz_star, Ux, Uy, Uz, 
+               conv_w_expl, 
+               diff_w_expl, rho, dt, mu, 1e-10, n_iter_w);
+  cout << "Uz iterations: "<< n_iter_w<<" iterations\n"; 
+  
 
-     fUV_f = 0.5*rho*(Ux.mesh[i ][j+1].cellVal() + Ux.mesh[i][j].cellVal() ) * 
-                                  0.5* (  Uy.mesh[i][ j ].cellVal() + Uy.mesh[i+1][ j ].cellVal() );
-     fUV_b = 0.5*rho*(Ux.mesh[i ][j ].cellVal() + Ux.mesh[i-1][j-1].cellVal() ) * 
-                                  0.5* (  Uy.mesh[i][ j ].cellVal() + Uy.mesh[i+1][j-1].cellVal() );
-
-     conv_u = (fUU_f - fUU_b) / (mesh[i][j].dx())  
-             +(fUV_f - fUV_b) / (mesh[i][j].dy()); 
-
-     //// convective term d(vu)/dx +  d(vv)/dy -- v-control volume     
-     fVU_f = 0.5 * rho*(Ux.mesh[i][j+1].cellVal() + Ux.mesh[i] [ j].cellVal()) * 0.5 * (Uy.mesh[i+1][ j ].cellVal() + Uy.mesh[i][ j ].cellVal() ); 
-     fVU_b = 0.5 * rho*(Ux.mesh[i][ j ].cellVal() + Ux.mesh[i][j-1].cellVal()) * 0.5 * (Uy.mesh[i+1][j-1].cellVal() + Uy.mesh[i][j-1].cellVal() );       
-
-
-     conv_v = (fVU_f - fVU_b) / (mesh[i][j].dx())  
-             +(fVV_f - fVV_b) / (mesh[i][j].dy());
-    
-     //// advective term dd(u)/dxx +  dd(u)/dyy -- u-control volume     
-     dU_dx_f = mu * (  (Ux.mesh[i+1][j].cellVal() - Ux.mesh[ i ][j].cellVal()) / (mesh[i+1][j].xFace(1) - mesh[i+1][j].xFace(0)));
-     dU_dx_b = mu * (  (Ux.mesh[ i ][j].cellVal() - Ux.mesh[i-1][j].cellVal()) / (mesh[ i ][j].xFace(1) - mesh[ i ][j].xFace(0)));
-     ddU_dxx = (dU_dx_f - dU_dx_b) / (mesh[i+1][j].xCentroid() - mesh[i][j].xCentroid());
-
-
-     dU_dy_f = mu * ( 0.5 * (Ux.mesh[i][j+1].cellVal() - Ux.mesh[i][ j ].cellVal()) / (mesh[i+1][j+1].yCentroid() - mesh[i+1][ j ].yCentroid()) );
-     dU_dy_b = mu * ( 0.5 * (Ux.mesh[i][j  ].cellVal() - Ux.mesh[i][j-1].cellVal()) / (mesh[ i ][ j ].yCentroid() - mesh[ i ][j-1].yCentroid()) );
-     ddU_dyy = (dU_dy_f - dU_dy_b) / mesh[i][j].dy();       
-
-     diff_u = ddU_dxx + ddU_dyy;
-
-
-     //// advective term dd(v)/dxx +  dd(v)/dyy -- v-control volume
-     dV_dx_f = mu * (  (Uy.mesh[i+1][j].cellVal() - Uy.mesh[ i ][j].cellVal()) / (mesh[i+1][j].xCentroid() - mesh[ i ][j].xCentroid()));
-     dV_dx_b = mu * (  (Uy.mesh[ i ][j].cellVal() - Uy.mesh[i-1][j].cellVal()) / (mesh[ i ][j].xCentroid() - mesh[i-1][j].xCentroid()));
-     ddV_dxx = (dV_dx_f - dV_dx_b) / (mesh[i][j].dx());
-
-     dV_dy_f = mu * (  (Uy.mesh[i][j+1].cellVal() - Uy.mesh[i][ j ].cellVal()) / (mesh[i][j+1].dy()));
-     dV_dy_b = mu * (  (Uy.mesh[i][ j ].cellVal() - Uy.mesh[i][j-1].cellVal()) / (mesh[i][ j ].dy()));
-     ddV_dyy = (dV_dy_f - dV_dy_b) / (mesh[i][j+1].yCentroid() - mesh[i][j].yCentroid());
-
-     diff_v = ddV_dxx + ddV_dyy;
-
-     //// predictor step for velocity Ux and Uy
-     Ux_star.mesh[i][j].setVal( Ux.mesh[i][j].cellVal() - dt * (conv_u + diff_u) );
-     Uy_star.mesh[i][j].setVal( Uy.mesh[i][j].cellVal() - dt * (conv_v + diff_v) );
-   }
-   cout<<"\n";
-  } 
+  cout<<"\n";
 
   setBCuFV(&Ux_star);
   setBCvFV(&Uy_star);
+  setBCvFV(&Uz_star);
 
-  poisson(&p, Ux_star, Uy_star, 1e-9, 0.5);
+  ///////// compute divergence of predictor steps field /////////
+  divergence(&div, Ux_star, Uy_star, Uz_star);
+  cout << "mass imbalance "<< l1_norm(div)<<"\n";
+  
+  //////// solve Poisson Equation for Pressure /////////
+  //if (n_iter_ssor >100 &&  n_iter>4000)
+  //{
+ //   multigrid(&p, div, 1e-14, rho, dt, 1.3, Lx, Ly, 2);
+  //}
+  //else {
+     poisson(&p, div, rho, dt, 1e-14, 0.7, n_iter_ssor);
+    cout << "convergence achieved on pressure in "<< n_iter_ssor <<" iterations\n";//}
 
- Ux_time_series.push_back(Ux_star);
- Uy_time_series.push_back(Ux_star);
+  /////// corrector step: projet the predicted velocity field in a div free space ////////
+  correct (&Ux, &Uy, &Uz, Ux_star, Uy_star, Uz_star, p, rho, dt); 
+  setBCuFV(&Ux);
+  setBCvFV(&Uy);
+  setBCvFV(&Uz);
 
+
+  divergence(&div, Ux, Uy, Uz);
+  cout << "mass imbalance after correction "<< l1_norm(div)<<"\n";
+
+  if (t - t_last > dt_write)
+  {
+    n_file ++;
+    std::stringstream ss;
+    ss << std::setw(10) << std::setfill('0') << n_file;
+    std::string namefile = ss.str();
+
+     write_output(Ux, Uy, p, namefile);
+     t_last = t;
+  
+ }
+  //Ux_time_series.push_back(Ux);
+  //Uy_time_series.push_back(Uy);
+  n_iter++;
  };
 
+     // interpolate on the coarser grid //
+ volumeField  Ux_coarser = buildFVfield(Nx/2, Ny/2, Nz/2, Lx, Ly, Lz);
+ volumeField  Uy_coarser = buildFVfield(Nx/2, Ny/2, Nz/2, Lx, Ly, Lz);
+ volumeField  Uz_coarser = buildFVfield(Nx/2, Ny/2, Nz/2, Lx, Ly, Lz);
 
- for (int j = Ny; j >=1; j--)
- {
-   for(int i = 1; i<= Nx; i++)
-   {
-    p.mesh[i][j].print_cellVal();
-   }
-   cout<<"\n";
- }
+ volumeField  p_coarser  = buildFVfield(Nx/2, Ny/2, Nz/2, Lx, Ly, Lz);
 
- 
-FILE *OutFile = fopen("p.dat","w++");
+ interpolateFieldVal(Ux , &Ux_coarser); 
+ interpolateFieldVal(Uy , &Uy_coarser); 
+ interpolateFieldVal(Uz , &Uz_coarser); 
 
- for (int j = Ny; j >=1; j--) {
-   fprintf(OutFile,"\n ");
-   for(int i=1; i<=Nx; i++){
-      double val = p.mesh[i][j].cellVal();
-      fprintf(OutFile,"\t %f ", val); } }
-
-fclose(OutFile);
+ interpolateFieldVal(p  , &p_coarser); 
+ write_output(Ux_coarser, Uy_coarser, Uz_coarser, p_coarser, "0_coarse_grid");
 
 
+      // prolongate on the coarser grid //
+ volumeField  Ux_prl = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  Uy_prl = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+ volumeField  Uz_prl = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+
+ volumeField  p_prl  = buildFVfield(Nx, Ny, Nz, Lx, Ly, Lz);
+
+ prolongateFieldVal(Ux_coarser , &Ux_prl); 
+ prolongateFieldVal(Uy_coarser , &Uy_prl); 
+ prolongateFieldVal(Uz_coarser , &Uz_prl); 
+
+ prolongateFieldVal(p_coarser , &p_prl); 
+ write_output(Ux_prl, Uy_prl, Uz_prl, p_prl, "0_fine_grid");
 
 
  free(mesh);
  free(Ux.mesh);
  free(Uy.mesh);
+ free(Uz.mesh);
+
  free(p.mesh);
 
  
