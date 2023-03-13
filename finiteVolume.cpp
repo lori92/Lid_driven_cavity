@@ -1,6 +1,5 @@
 #include <iostream>
 #include "mesh.h"
-using namespace std;
 
 ///////////////// finite volume discretization of explicit convective terms //////////
 void convection_u_expl (volumeField* conv, const volumeField& Ux, const volumeField& Uy, const double rho)
@@ -12,11 +11,33 @@ void convection_u_expl (volumeField* conv, const volumeField& Ux, const volumeFi
   int N_x = Ux.dimx;
   int N_y = Ux.dimy;
 
+  double xF_i, xC_i, xC_i1;
+  double yF_j, yC_j, yC_j1;
+  double lx, ly_f, ly_b;  
+
   //// convective term d(uu)/dx +  d(uv)/dy -- u-control volume	 
   for (int i = 1; i <= N_x; i++)
   {
     for(int j = 1; j<= N_y; j++)
     {  
+
+
+               xF_i  = Ux.mesh[i][j] .xFace(1);
+               xC_i  = Ux.mesh[i][j] .xCentroid();
+               xC_i1 = Ux.mesh[i+1][j] .xCentroid();
+               lx    = (xF_i - xC_i)/(xC_i1 - xC_i);
+
+               yF_j  = Uy.mesh[i][j] .yFace(1);
+               yC_j  = Uy.mesh[i][j] .yCentroid();
+               yC_j1 = Uy.mesh[i][j+1] .yCentroid();
+               ly_f =  (yF_j - yC_j)/(yC_j1 - yC_j);
+
+               yF_j  = Uy.mesh[i][j] .yFace(0);
+               yC_j  = Uy.mesh[i][j-1] .yCentroid();
+               yC_j1 = Uy.mesh[i][j] .yCentroid();
+               ly_b =  (yF_j - yC_j)/(yC_j1 - yC_j);
+
+
      rho_f = rho;
      rho_b = rho;   
      fUU_f = 0.25 * rho_f * (Ux.mesh[i+1][j].cellVal() + Ux.mesh[ i ][j].cellVal()) * 
@@ -27,11 +48,16 @@ void convection_u_expl (volumeField* conv, const volumeField& Ux, const volumeFi
 
      rho_f = rho;
      rho_b = rho; 
-     fUV_f = 0.5*rho_f*(Ux.mesh[i ][j+1].cellVal() + Ux.mesh[i][j].cellVal() ) * 
-                  0.5* (Uy.mesh[i][ j ].cellVal() + Uy.mesh[i+1][ j ].cellVal() );
 
-     fUV_b = 0.5*rho_b*(Ux.mesh[i ][j ].cellVal() + Ux.mesh[i ][j-1].cellVal() ) * 
-                  0.5* (Uy.mesh[i][ j-1].cellVal() + Uy.mesh[i+1][j-1].cellVal() );
+     fUV_f =  rho_f*( ly_f    * Ux.mesh[i][j+1].cellVal() + 
+                    (1.-ly_f) * Ux.mesh[i] [j ].cellVal() ) * 
+                    ( lx      * Uy.mesh[i+1][j].cellVal() +
+                     (1.-lx)  * Uy.mesh[i][ j ].cellVal() );
+
+     fUV_b =  rho_b*( ly_b    * Ux.mesh[ i ][ j ].cellVal() + 
+                    (1.-ly_b) * Ux.mesh[ i ][j-1].cellVal() ) * 
+                    ( lx      * Uy.mesh[i+1][j-1].cellVal() +
+                     (1.-lx)  * Uy.mesh[ i ][j-1].cellVal() );
 
      conv->mesh[i][j].setVal(  (fUU_f - fUU_b) /  (Ux.mesh[i+1][j].xCentroid() - Ux.mesh[i][j].xCentroid())  
                                +(fUV_f - fUV_b) / (Ux.mesh[i][j].dy()) ); 
@@ -53,18 +79,40 @@ void convection_v_expl (volumeField* conv, const volumeField& Ux, const volumeFi
   int N_x = Uy.dimx;
   int N_y = Uy.dimy;
 
+  double xF_i, xC_i, xC_i1;
+  double yF_j, yC_j, yC_j1;
+  double lx_b, lx_f, ly;
+
   //// convective term d(vu)/dx +  d(vv)/dy -- v-control volume     
   for (int i = 1; i <= N_x; i++)
   {
     for(int j = 1; j<= N_y; j++)
     {  
+
+               xF_i  = Uy.mesh[ i ][j] .xFace(1);
+               xC_i  = Uy.mesh[ i ][j] .xCentroid();
+               xC_i1 = Uy.mesh[i+1][j] .xCentroid();
+               lx_f  = (xF_i - xC_i)/(xC_i1 - xC_i);
+
+                xF_i  = Uy.mesh[ i ][j] .xFace(0);
+               xC_i  = Uy.mesh[i-1][j] .xCentroid();
+               xC_i1 = Uy.mesh[ i ][j] .xCentroid();
+               lx_b = (xF_i - xC_i)/(xC_i1 - xC_i);   
+                 
+
+               yF_j  = Uy.mesh[i][ j ] .yFace(1);
+               yC_j  = Uy.mesh[i][ j ] .yCentroid();
+               yC_j1 = Uy.mesh[i][j+1] .yCentroid();
+               ly =  (yF_j - yC_j)/(yC_j1 - yC_j);
+
      rho_f = rho;
      rho_b = rho;
-     fVU_f = 0.25 * rho_f * (Ux.mesh[ i ][j+1].cellVal() + Ux.mesh[ i ][j].cellVal()) * 
-                            (Uy.mesh[i+1][ j ].cellVal() + Uy.mesh[ i ][j].cellVal()); 
-     fVU_b = 0.25 * rho_b * (Ux.mesh[i-1][j+1].cellVal() + Ux.mesh[i-1][j].cellVal()) * 
-                            (Uy.mesh[ i ][ j ].cellVal() + Uy.mesh[i-1][j].cellVal() );       
-     
+     fVU_f = rho_f * (ly   * Ux.mesh[ i ][j+1].cellVal() + (1.-ly) * Ux.mesh[ i ][j].cellVal()) * 
+                     (lx_f * Uy.mesh[i+1][ j ].cellVal() + (1-lx_f)* Uy.mesh[ i ][j].cellVal()); 
+
+     fVU_b = rho_b * (ly   * Ux.mesh[i-1][j+1].cellVal() + (1.-ly ) * Ux.mesh[i-1][j].cellVal()) * 
+                     (lx_b * Uy.mesh[ i ][ j ].cellVal() + (1-lx_b) * Uy.mesh[i-1][j].cellVal());   
+
      rho_f = rho;
      rho_b = rho;
      fVV_f = 0.25 * rho_f * (Uy.mesh[i][j+1].cellVal() + Uy.mesh[i][ j ].cellVal()) *

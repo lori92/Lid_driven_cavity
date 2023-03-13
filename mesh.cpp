@@ -1,5 +1,6 @@
 #include <iostream>
 #include "mesh.h"
+#include <cmath>
 using namespace std;
 
 void FVcell :: setCellPos(double x, double y, double dx, double dy)
@@ -20,6 +21,43 @@ void FVcell :: setVal(double value_in)
         //  value of the volumeField for given cell corresponding to index i, j
 	value = value_in;
 };
+
+void FVcell :: setCellLabel(int i, int j, int N_x, int N_y)
+{
+  // setting the ID for a given cell according to its indexing (i,j)
+
+  // default: internal node
+  this->ID.INTERNAL = 1;
+  this->ID.EAST     = 0;
+  this->ID.WEST     = 0;
+  this->ID.NORD     = 0;
+  this->ID.SUD      = 0;
+
+  if (i <= 1) { // west node
+    this->ID.INTERNAL = 0;
+    this->ID.WEST     = 1;
+  }
+
+  if (i >= N_x) { // east node
+    this->ID.INTERNAL = 0;
+    this->ID.EAST     = 1;
+  }  
+
+  if (j >= N_y) { // nord node
+    this->ID.INTERNAL = 0;
+    this->ID.NORD     = 1;
+  }  
+
+  if (j <= 1) { // sud node
+    this->ID.INTERNAL = 0;
+    this->ID.SUD      = 1;
+  }
+};
+
+ID_CELL FVcell:: IDCELL()
+{
+  return this->ID;
+}
 
 
 void FVcell :: print_cellCentre(){
@@ -113,37 +151,43 @@ volumeField buildFVfield (int N_x, int N_y, double L_x, double L_y)
  // index i spans the y-direction
  // index j spans the x-direction
 
- double xf[N_x+1];
+ double xf[N_x+2];
  double xc[N_x+2];
- double yf[N_y+1];
+ double yf[N_y+2];
  double yc[N_y+2];
 
  volumeField field;
  double gamma;
- gamma  = 1.;
+ gamma  = 1. ;
  FVcell **mesh_p = new FVcell* [N_x+2];
 
-  for (int i = 0; i <= N_x+1; i++)
+  for (int i = 0; i <= N_x; i++)
   {  
-   //xf[i] = L_x * 0.5*(1. - tanh(gamma*(1.-2.*i/(N_x)))/tanh(gamma));
-   xf[i] = L_x *i/(N_x);
-
+   xf[i] = L_x * 0.5*(1. - tanh(gamma*(1.-2.*i/(N_x)))/tanh(gamma));
+   //xf[i] = L_x *i/(N_x);
   }
+  xf[N_x+1] = L_x + (L_x - xf[N_x-1]);
+
+
   for (int i = 1; i <= N_x; i++)
   {  
     xc[i] =  xf[i-1] + 0.5*(xf[i]-xf[i-1]);
   }
 
+  
   xc[0]   =  0 - xc[1];
   xc[N_x+1]=  L_x + (L_x-xc[N_x]);
 
-  for (int j = 0; j <= N_y+1; j++)
-    {
-      //yf[j] = L_y * 0.5*(1. - tanh(gamma*(1.-2.*j/(N_y)))/tanh(gamma));
-      yf[j] = L_y * j/(N_y);
-    }
+  for (int j = 0; j <= N_y; j++)
+  {
+    yf[j] = L_y * 0.5*(1. - tanh(gamma*(1.-2.*j/(N_y)))/tanh(gamma));
+    //yf[j] = L_y * j/(N_y);
+  }
 
-  for (int j = 1; j <= N_y+1; j++)
+  yf[N_x+1] = L_y + (L_y - yf[N_y-1]);
+  
+
+  for (int j = 1; j <= N_y; j++)
   {  
     yc[j] =  yf[j-1] + 0.5*(yf[j]-yf[j-1]);
   }
@@ -156,9 +200,11 @@ volumeField buildFVfield (int N_x, int N_y, double L_x, double L_y)
    mesh_p[i] = new FVcell [N_y+2];
    for(int j = 0; j<= N_y+1; j++)
    {       
-    double dx = 0.5*(xf[i]  - xc[i]);   
-    double dy = 0.5*(yf[j]  - yc[j]);     
+    double dx = 2.*(xf[i]  - xc[i]);   
+    double dy = 2.*(yf[j]  - yc[j]);     
     mesh_p[i][j].setCellPos( xc[i], yc[j], dx, dy  );
+    mesh_p[i][j].setCellLabel( i, j, N_x, N_y);
+
    }     
  }
  field.mesh = mesh_p;
@@ -218,7 +264,7 @@ void setBCuFV (volumeField* field)
  for (int i = 0; i <= N_x+1; i++)
  {
     field->mesh[i][  0  ].setVal(     - field->mesh[i][ 1 ].cellVal() )  ;
-    field->mesh[i][N_y+1].setVal( 1. - field->mesh[i][N_y].cellVal() ) ;
+    field->mesh[i][N_y+1].setVal( 0.2 - field->mesh[i][N_y].cellVal() ) ;
  }
  return;
 };
@@ -263,14 +309,14 @@ void setBCpFV (volumeField* p)
  for (int j = 0; j <= N_y+1; j++)
  { 
     p->mesh[  0  ][j].setVal(  p->mesh[ 1 ][j].cellVal()  );
-    p->mesh[N_x+1][j].setVal(   p->mesh[N_x][j].cellVal()  );
+    p->mesh[N_x+1][j].setVal(    p->mesh[N_x][j].cellVal()  );
  }
 
  // along x-axis        
  for (int i = 0; i <= N_x+1; i++)
  {
-    p->mesh[i][  0  ].setVal( 20 -  p->mesh[i][ 1   ].cellVal() );
-    p->mesh[i][N_y+1].setVal( 5  -  p->mesh[i][ N_y ].cellVal() );
+    p->mesh[i][  0  ].setVal(    p->mesh[i][ 1   ].cellVal() );
+    p->mesh[i][N_y+1].setVal(    p->mesh[i][ N_y ].cellVal() );
      }
  return;
 };
@@ -416,3 +462,40 @@ void prolongateFieldVal(const volumeField& field_coarse, volumeField* field_fine
 }; 
 return;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////
+double l1_norm(volumeField const field)
+{
+
+    int N_x = field.dimx;
+    int N_y = field.dimy;
+
+    double accum = 0.;
+
+    for (int i = 1; i <= N_x; ++i)
+    {
+         for (int j= 1; j <= N_y; ++j)
+         {
+          accum += fabs( field.mesh[i][j].cellVal() ) ;
+         };
+    };
+    return sqrt(accum);
+};
+///////////////////////////////////////////////////////////////////
+double sum (const volumeField& field)
+{
+
+    int N_x = field.dimx;
+    int N_y = field.dimy;
+
+    double accum = 0.;
+
+    for (int i = 1; i <= N_x; i++)
+    {
+         for (int j= 1; j <= N_y; j++)
+         {
+          accum = accum + ( field.mesh[i][j].cellVal() ) ;
+         };
+    };
+    return (accum);
+};
