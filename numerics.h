@@ -3,6 +3,9 @@
 //#include <petscksp.h>
 
 
+
+
+
 inline int return_n(int, int, int, int);
 inline int return_i(int, int, int);
 inline int return_j(int, int, int);
@@ -48,12 +51,8 @@ double* forcing_term(const volumeField&  ,
 
 /****************************************/
 
-void forcing_term2(const volumeField&  , 
-                         double** ,
-                         double**  ,
-                         double**  ,
-                         double**  ,
-                         double**  );
+void updateForcingTerm(  double [],
+                         const volumeField&);
 
 /**************************************/
 
@@ -67,6 +66,7 @@ void getVolumeField(volumeField*  ,  double*  );
 
 void solvePressure( double**  ,
                     double [] , 
+                    double [],
                     volumeField*  , 
                     volumeField  , 
                     const double  , 
@@ -85,14 +85,13 @@ bool tdma(int  , const double [], const double [], const double [], const double
 /**************************************/
 
 void solvePressure_test( 
-                    double*   ,
-                    volumeField*  , 
+                    double []   ,
+                    double [],
+                    volumeField* , 
                     volumeField  , 
-                    const double  , 
-                    const double  ,
-                    double**  ,
-                    double**  ,
-                    double**  ,
-                    double**  ,
-                    double**  ,
+                    const double , 
+                    const double ,
                     int&,int&, int  [] );
+
+/**************************************/
+

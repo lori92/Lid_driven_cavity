@@ -293,7 +293,7 @@ int main()
   cout << "mass imbalance "<< l1_norm(div)<<"\n";
   
   //////// solve Poisson Equation for Pressure /////////
-  solvePressure_test(  &L_array[0],  &p, div, dt, rho, aP, aS, aN, aW, aE, factorization, info, ipiv);
+  solvePressure_test(  &L_array[0], &b_array[0], &p, div, dt, rho, factorization, info, ipiv);
   //solvePressure( L, &L_array[0],  &p, div, dt, rho, aP, aS, aN, aW, aE);
  
   //L_array = L_array_tmp;

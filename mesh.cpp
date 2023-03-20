@@ -264,7 +264,7 @@ void setBCuFV (volumeField* field)
  for (int i = 0; i <= N_x+1; i++)
  {
     field->mesh[i][  0  ].setVal(     - field->mesh[i][ 1 ].cellVal() )  ;
-    field->mesh[i][N_y+1].setVal( 0.2 - field->mesh[i][N_y].cellVal() ) ;
+    field->mesh[i][N_y+1].setVal( 2 - field->mesh[i][N_y].cellVal() ) ;
  }
  return;
 };
@@ -272,7 +272,6 @@ void setBCuFV (volumeField* field)
 void setBCvFV (volumeField* field)
 {
  // set wall boundary condition for staggered Uy velocity field  
- // set wall boundary condition for staggered Ux velocity field  
  int N_x, N_y;
 
  N_x = field->dimx;

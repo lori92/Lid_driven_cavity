@@ -303,13 +303,8 @@ double* forcing_term(const volumeField& b,
  return f;
 }
 /****************************************/
-
-void forcing_term2( double* f, const volumeField& b, 
-                         double** aP,
-                         double** aN,
-                         double** aS,
-                         double** aW,
-                         double** aE)
+void updateForcingTerm(  double f[], 
+                         const volumeField& b)
 {
  int N_x = b.dimx;
  int N_y = b.dimy;
@@ -323,46 +318,13 @@ void forcing_term2( double* f, const volumeField& b,
       int n = return_n(i,j,N_x,N_y);
 
       f[n] = b.mesh[i+1][j+1].cellVal();
-
-      if (b.mesh[i+1][j+1].IDCELL().EAST ==1)   
-      {
-       //f[n] = f[n] - 2*5*aE[i+1][j+1] ; 
-      }
-	  
-      if (b.mesh[i+1][j+1].IDCELL().WEST ==1)   
-      {
-       //f[n] = f[n] - 2*15*aW[i+1][j+1] ; 
-      }
-	  
 	
    }
  }
 
  f[N] =   2.*101325.; 
 
- FILE* fid = fopen("b_.dat","w");
- if (fid)
- {
-    
-     for (int j = 0; j<N+1; j++)
-     {
-       fprintf(fid, "%16.7e    ", f[j]);
-     }       
-     fprintf(fid, "\n");
-    
-  fclose(fid);
- }
- else 
- {
-    std::cout<<"\n";
-    std::cout<<"************ ERROR: matrix A_ not written.. ************"<<"\n";
-    std::cout<<"\n";
- };
-
- 
-
-
- return;// f;
+ return;
 }
 
 /**************************************/
@@ -409,15 +371,11 @@ void getVolumeField(volumeField* field,  double* array)
 
 void solvePressure( double** LaplaceOperator,
                     double L[],
+                    double b_reshaped[],
                     volumeField* p, 
                     volumeField div, 
                     const double dt, 
-                    const double rho,
-                    double** aP,
-                    double** aN,
-                    double** aS,
-                    double** aW,
-                    double** aE ) 
+                    const double rho) 
 {
    int N_x = p->dimx;
    int N_y = p->dimy;
@@ -428,12 +386,8 @@ void solvePressure( double** LaplaceOperator,
    int ldb = dim;
    int info;
 
-
-
    // reorder in a vector all the elements from the field div*(rho/dt)
-   double* b_reshaped;
-   b_reshaped          = new double [dim];
-   b_reshaped = forcing_term( div*(rho/dt) ,aP,aS,aN,aW,aE );
+   updateForcingTerm( b_reshaped, div*(rho/dt));
 
    // reshape the laplacian operator in a dimxdim vector so as to have contiguos allocation of memor
    // (needed for dgesv routine)    
@@ -446,8 +400,7 @@ void solvePressure( double** LaplaceOperator,
    setBCpFV(p);
 
    //delete(L);
-   delete(b_reshaped);
-
+ 
    return;
 }
 
@@ -494,15 +447,11 @@ bool tdma(int N, const double a[], const double b[], const double c[], const dou
 
 void solvePressure_test( 
                     double*  L,
+                    double b_reshaped[],
                     volumeField* p, 
                     volumeField div, 
                     const double dt, 
                     const double rho,
-                    double** aP,
-                    double** aN,
-                    double** aS,
-                    double** aW,
-                    double** aE,
                     int& factorization,
                     int& info,
                     int ipiv[] ) 
@@ -519,22 +468,7 @@ void solvePressure_test(
 
 
    // reorder in a vector all the elements from the field div*(rho/dt)
-   //double* b_reshaped;
-   //b_reshaped          = new double [dim];
-   //forcing_term2(b_reshaped, div*(rho/dt) ,aP,aS,aN,aW,aE );
-
-   double* b_reshaped;
-   b_reshaped          = new double [dim];
-   b_reshaped = forcing_term( div*(rho/dt) ,aP,aS,aN,aW,aE );
-   // reshape the laplacian operator in a dimxdim vector so as to have contiguos allocation of memor
-   // (needed for dgesv routine)    
-   //reshape(dim, &L[0], LaplaceOperator);
-   
-   //std:: cout<<"call dgesv_"<<"\n";
-   // solve for the pressure vectorp p: L p = b and impose BC on the reshapded field
-   //dgesv_(&dim, &nrhs,  &L[0], &lda, ipiv, b_reshaped, &ldb, &info);
-  // dgetrs_(&trans, &dim, &nrhs, &L[0], &lda, ipiv, b_reshaped, &ldb, &info);
-
+   updateForcingTerm( b_reshaped, div*(rho/dt));
 
   /* if no factorization is given, calculate it */
   if (factorization == 0)
@@ -550,16 +484,11 @@ void solvePressure_test(
   else
   {
 
- 
-
      dgetrs_(&trans, &dim, &nrhs, &L[0], &lda,  ipiv, b_reshaped, &ldb, &info);
  
   }
    getVolumeField(p,  b_reshaped);  
    setBCpFV(p);
-
-   //delete(L);
-   //delete(b_reshaped);('N',neqn,1,coeff,neqn,ipiv,lhs,neqn,info2)
 
    return;
 }
