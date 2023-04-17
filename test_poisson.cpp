@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include "global_variables.h"
+#include <chrono>
 
 #include "mesh.cpp"
 #include "poisson_solver.cpp"
@@ -16,8 +17,8 @@
 using namespace std;
 
 /// number of internal cells (without ghost nodes) ///
-#define Nx 200
-#define Ny 200
+#define Nx 128
+#define Ny 128
 
 int main()
 {
@@ -49,17 +50,33 @@ int main()
 
  cout<<"\n";
 
+ time_t start, end;
+
  //////// solve Poisson Equation for Pressure /////////
  //if (n_iter_ssor >100 &&  n_iter>4000)
  //{  // multigrid(&p, div, 1e-14, rho, dt, 1.3, Lx, Ly, 2);
 //   multigrid(&p, div, 1e-14, 1, 1, 1.3, Lx, Ly, 1e-3,1e-3,2);
-  int vcycle = 0;
+  int vcycle = 1;
   // multigrid_rec(&pmg, div, 1e-14,  1.3, Lx, Ly, 1e-3,1e-3, vcycle);
+  time(&start);
+  vCycle (&pmg, &div, 0.5,   Lx,   Ly, 1e-18, 2, vcycle);
+  time(&end);
 
-  //}
-  //else {
-  poisson(&p_sor, div, 1, 1, 1e-14, 1.3, n_iter_ssor);
-   //cout << "convergence achieved on pressure in "<< n_iter_ssor <<" iterations\n";//}
+  double time_taken = double(end - start);
+  cout << "Time taken by V-Cycle is : " << fixed << time_taken << setprecision(5);
+  cout << " sec " << endl;  
+
+  
+  
+  time(&start);    
+  poisson(&p_sor, div, 1, 0.5, 1e-12, 1.3, n_iter_ssor);
+  time(&end);
+  
+  time_taken = double(end - start);
+  cout << "Time taken by SOR is : " << fixed << time_taken << setprecision(5);
+  cout << " sec " << endl;  
+
+   cout << "convergence achieved on pressure in SOR with "<< n_iter_ssor <<" iterations\n";//}
 
  
 

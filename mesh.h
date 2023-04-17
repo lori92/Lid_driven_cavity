@@ -1,6 +1,14 @@
 #ifndef FVCELL_H
 #define FVCELL_H
 
+struct buffer
+{
+    double x;
+    double y;
+    double dx;
+    double dy;
+};
+
 struct ID_CELL
 { 
    bool INTERNAL;
@@ -37,11 +45,26 @@ class FVcell
  double yFace (int) ;
 
 };
+///////////////////////////////////////////////////////////////
+class mesh
+{
+  private:
+   static const int dimx;
+   static const int dimy;
 
+  mesh(int Nx, int Ny)
+  {
+    dimx = Nx;
+    dimy = Ny;
+  }
+  
+
+}
 ///////////////////////////////////////////////////////////////
 struct volumeField 
 {
  FVcell** mesh;
+ std::vector<FVcell> mesh_vector;
  int dimx;
  int dimy;
 
@@ -50,12 +73,14 @@ struct volumeField
   volumeField operator*(double scalar_val);
 
 };
+////////////////////////////////////////////////////////////////
+std::&vector<FVcell> reshapeMesh( FVcell**);
+////////////////////////////////////////////////////////////////
+FVcell** buildMesh (int  , int  , double  , double  );
 ///////////////////////////////////////////////////////////////
-
+volumeField buildFVfield (int, int, double, double);
 ///////////////////////////////////////////////////////////////
-
-volumeField buildFVfield (int  , int  , double  , double  );
-
+volumeField allocFVfield (int, int);
 ////////////////////////////////////////////////////////////////
 
 void initFieldVal (volumeField  , double  );

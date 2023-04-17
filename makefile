@@ -5,12 +5,15 @@
 #  See also $PETSC_DIR/share/petsc/Makefile.user for the preferred approach
 #  You must set the environmental variable(s) PETSC_DIR (and PETSC_ARCH if PETSc was not configured with the --prefix option)
 ##
-MAX_THREADS=4
+BLAS_LAPL_LIBSS=/root/libs
+PETSC_DIR=/root/petsc
 
-PETSC_DIR =/root/petsc
-PATH_LIBS=/root/libs
-PATH_OPENBLASLIB=/root/libs_openBlas/lib
-PATH_OPENBLASLINC=/root/libs_openBlas/include
+# Include Petsc-defined variables
+
+include ${PETSC_DIR}/lib/petsc/conf/variables
+include ${PETSC_DIR}/lib/petsc/conf/rules
+include ${PETSC_DIR}/lib/petsc/conf/test
+
 
 #   You can set specific values below but that should rarely need to
 CFLAGS		 =O3
@@ -18,90 +21,80 @@ FFLAGS		 =
 CPPFLAGS         =
 FPPFLAGS         =
 
-CXX        = g++
-CXXFLAGS   = -Wall -fbounds-check -std=c++14
-#CXXFLAGS   = -MMD -MP -I$(PATH_OPENBLASLINC) -pthread -fopenmp -O3 -funroll-all-loops -fexpensive-optimizations -ftree-vectorize -fprefetch-loop-arrays -floop-parallelize-all -ftree-parallelize-loops=$(MAX_THREADS) -m64 -c -Wall#
+
+CXX_STD = -std=c++11
+CXX_CFLAGS = ${CXX_STD} ${CXX_FLAGS} ${PETSC_CCPPFLAGS} 
+LIBS = ${PETSC_LIB} ${BLAS_LAPL_LIBS}
+CXX_LFLAGS = ${CXX_STD}
+
 STRIP      = strip
 LDFLAGS    = 
 
 
-EXECUTABLE = cavity
+#EXECUTABLE = cavity
 
-app : LDLIBS += -lstdc++ 
+#app : LDLIBS += -lstdc++ 
 
-
-
-#$(EXECUTABLE): $(OBJS)
-#	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-#	$(STRIP) $(EXECUTABLE)
-
-
-
-SRCS=main.cpp 
-OBJS=main.o mesh.o 
-
-#$(EXECUTABLE): $(OBJS)
-#	$(CXX) $(CXXFLAGS) -o $(EXECUTABLE) $(OBJS) $(LDLIBS) -L$(PATH_OPENBLASLIBS) -lopenblas -lgfortran
-
-#$(EXECUTABLE): $(OBJS)
-#	$(CXX) $(LDFLAGS) -o $(EXECUTABLE) $(OBJS) $(LDLIBS) -L$(PATH_LIBS) -L$(PATH_LIBS) -llapack -lblas -lgfortran
-
-#$(OBJS): $(SRCS)
-#	$(CXX) $(CPPFLAGS) -c  $(SRCS) $(LDLIBS) 
-
-#mesh.o: mesh.cpp
-#	$(CXX) $(CPPFLAGS) -c  $(SRCS) $(LDLIBS) 
-
-#	g++ -c mesh.cpp                # translates frac.cpp into object code, frac.o 
-#	g++ -c main.cpp                # translates main.cpp into object code, main.o
-
-
-
-#mesh.o: mesh.cpp
-#	$(CXX) $(CPPFLAGS) -c  mesh.cpp $(LDLIBS) 
-
-
-#main.o: main.cpp
-#	$(CXX) $(CPPFLAGS) -c  main.cpp $(LDLIBS)	
-
-#$(EXECUTABLE): $(OBJS)
-#	$(CXX) $(LDFLAGS) -o $(EXECUTABLE) $(OBJS) $(LDLIBS) -L$(PATH_LIBS) -L$(PATH_LIBS) -llapack -lblas -lgfortran
-
-SOURCES = main.cpp write_output.cpp mesh.cpp  predictor_step_new.cpp poisson_solver.cpp finiteVolume.cpp numerics.cpp
+SOURCES =   FVmesh.cpp FVIO.cpp FVmatrix.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
-.PHONY: clean all
-.DEFAULT_GOAL := all
-
-all: cavity
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $< -o $@ -c
-
-$(EXECUTABLE): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $^ -o $@  $(LDLIBS) -L$(PATH_LIBS) -L$(PATH_LIBS) -llapack -lblas -lgfortran
-
-clean:
-	rm -f *.o $(EXECUTABLE) *.d
-    
--include $(OBJECTS:.o=.d)
+.PHONY: default allclean
 
 
-#  When linking in a multi-files with Fortran source files a.F90, b.c, and c.cxx
-#  You may need to use
-#
-# app : a.o b.o c.o
-# 	$(LINK.F) -o $@ $^ $(LDLIBS)
 
-# If the file c.cxx needs to link with a C++ standard library -lstdc++ , then
-# you'll need to add it explicitly.  It can go in the rule above or be added to
-# a target-specific variable by uncommenting the line below.
-#include ${PETSC_DIR}/lib/petsc/conf/variables
+all: prog
+prog: ${OBJECTS} FVmain.o 
+	@echo "--- COMPILE FVmain  with ${CXX}  ---"
+	$(CXX) ${OBJECTS} FVmain.o -o prog ${LIBS} ${CXX_CFLAGS}
 
-#  To access the PETSc variables for the build, including compilers, compiler flags, libraries etc but
-#  manage the build rules yourself (rarely needed) comment out the next lines
-#include ${PETSC_DIR}/lib/petsc/conf/rules
-#include ${PETSC_DIR}/lib/petsc/conf/test
+FVmain.o: ${OBJECTS} FVmain.cpp
+	@echo "--- COMPILE FVmain  with ${OBJECTS}  ---"
+	${CXX} -o FVmain.o -c FVmain.cpp ${LIBS} ${CXX_CFLAGS}
+	@echo "==============="
+
+FVmatrix.o: FVmesh.o FVmatrix.cpp
+	@echo "--- COMPILE FVmatrix---"
+	${CXX} -o FVmatrix.o -c FVmatrix.cpp ${CXX_CFLAGS}
+	@echo "==============="
+
+FVIO.o: FVmesh.o FVIO.cpp
+	@echo "--- COMPILE FVIO ---"
+	${CXX} -o  FVIO.o -c FVIO.cpp ${CXX_CFLAGS}
+	@echo "==============="
+
+FVmesh.o: FVmesh.cpp
+	@echo "--- COMPILE MESH---"
+	${CXX} -o FVmesh.o -c FVmesh.cpp ${CXX_CFLAGS}
+	@echo "==============="
+
+
+#numerics.o: mesh.o numerics.cpp
+#	@echo "--- COMPILE NUMERICS---"
+#	${CXX} -o  numerics.o -c numerics.cpp ${LIBS} ${CXX_CFLAGS}
+#	@echo "==============="
+
+#predictor_step_new.o: mesh.o  predictor_step_new.cpp
+#	@echo "--- COMPILE NUMERICS---"
+#	${CXX} -o  predictor_step_new.o -c predictor_step_new.cpp ${CXX_CFLAGS}
+#	@echo "==============="
+
+#poisson_solver.o: mesh.o  poisson_solver.cpp
+#	@echo "--- COMPILE poisson_solver---"
+#	${CXX} -o  poisson_solver.o -c poisson_solver.cpp ${CXX_CFLAGS}
+#	@echo "==============="
+
+
+
+#finiteVolume.o: mesh.o finiteVolume.cpp
+#	@echo "--- COMPILE finiteVolume ---"
+#	${CXX} -o  finiteVolume.o -c finiteVolume.cpp ${CXX_CFLAGS}
+#	@echo "==============="
+
+#BoundaryConditions.o: mesh.o BoundaryConditions.cpp
+#	@echo "--- COMPILE BoundaryConditions ---"
+#	${CXX} -o  BoundaryConditions.o -c BoundaryConditions.cpp ${CXX_CFLAGS}
+#	@echo "==============="
+
 
 
 

@@ -12,6 +12,7 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>      
+#include <mpi.h>
 
 
 #include "mesh.h"
@@ -301,3 +302,48 @@ void write_centre_line(const volumeField vel_x, const volumeField vel_y, const d
 
 return;
 }
+
+void read_input(const int rank, int& restart, double &t0, double& tend, double& dt_write, double& mu, double& rho, double& Lx, double& Ly)
+{
+
+ MPI_Comm comm;
+ 
+ if (rank == 0)
+ {
+   FILE* fid;
+   fid = fopen("input.in","r");
+   if (fid)
+   {
+      fscanf(fid, "%d\n",  &restart);
+      fscanf(fid, "%lf\n", &t0);
+      fscanf(fid, "%lf\n", &tend);
+      fscanf(fid, "%lf\n", &dt_write);
+
+      fscanf(fid, "%lf\n", &mu);
+      fscanf(fid, "%lf\n", &rho);
+      fscanf(fid, "%lf\n", &Lx);
+      fscanf(fid, "%lf\n", &Ly);  
+   }
+   else
+   {
+      std::cout << "***** input.in not found *****\n";
+      return;
+   };
+   fclose(fid);
+ }
+
+ MPI_Bcast( &restart, 1, MPI_INT    , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &t0, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &tend, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &dt_write, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &mu, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &rho, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &Lx, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+ MPI_Bcast( &Ly, 1, MPI_DOUBLE , 0, MPI_COMM_WORLD );
+
+
+
+
+
+return;
+};

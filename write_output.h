@@ -17,3 +17,5 @@ void read_data(volumeField*  ,  volumeField*  ,   volumeField*  , double&  );
 void write_k(const volumeField  , const volumeField  , const double  );
 
 void write_centre_line(const volumeField  , const volumeField  , const double  ) ;
+
+void read_input( const int , int& , double& , double& , double&, double&, double&, double&, double&);

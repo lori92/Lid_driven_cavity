@@ -5,7 +5,6 @@
 
 
 
-
 inline int return_n(int, int, int, int);
 inline int return_i(int, int, int);
 inline int return_j(int, int, int);
@@ -64,6 +63,11 @@ void getVolumeField(volumeField*  ,  double*  );
 
 /**************************************/
 
+void getArray(int, double[], const FVcell**, int );
+
+/**************************************/
+
+
 void solvePressure( double**  ,
                     double [] , 
                     double [],
@@ -94,4 +98,17 @@ void solvePressure_test(
                     int&,int&, int  [] );
 
 /**************************************/
+
+ void getMPI_Buffer(int  , buffer*  , FVcell**   , int,  int  , int  );
+
+/**************************************/
+
+ void getMesh      (int  , buffer*  ,  volumeField*,
+                                        volumeField*,
+                                        volumeField*,
+                                        volumeField*,
+                                        volumeField*, 
+                                        volumeField*, int);
+
+
 

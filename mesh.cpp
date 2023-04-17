@@ -129,19 +129,60 @@ volumeField volumeField::operator*(double scalar_val)
 ////////////////////////////////////////////////////////////////
 FVcell** buildMesh (int N_x, int N_y, double L_x, double L_y)
 {
- // index i spans the y-direction
- // index j spans the x-direction
+ double xf[N_x+2];
+ double xc[N_x+2];
+ double yf[N_y+2];
+ double yc[N_y+2];
 
+ double gamma;
+ gamma  = 1. ;
  FVcell **mesh_p = new FVcell* [N_x+2];
- for (int i = 0; i <= N_x+1; i++)
- {       
+
+  for (int i = 0; i <= N_x; i++)
+  {  
+   xf[i] = L_x * 0.5*(1. - tanh(gamma*(1.-2.*i/(N_x)))/tanh(gamma));
+  }
+  xf[N_x+1] = L_x + (L_x - xf[N_x-1]);
+
+
+  for (int i = 1; i <= N_x; i++)
+  {  
+    xc[i] =  xf[i-1] + 0.5*(xf[i]-xf[i-1]);
+  }
+
+  
+  xc[0]   =  0 - xc[1];
+  xc[N_x+1]=  L_x + (L_x-xc[N_x]);
+
+  for (int j = 0; j <= N_y; j++)
+  {
+    yf[j] = L_y * 0.5*(1. - tanh(gamma*(1.-2.*j/(N_y)))/tanh(gamma));
+    //yf[j] = L_y * j/(N_y);
+  }
+
+  yf[N_x+1] = L_y + (L_y - yf[N_y-1]);
+  
+
+  for (int j = 1; j <= N_y; j++)
+  {  
+    yc[j] =  yf[j-1] + 0.5*(yf[j]-yf[j-1]);
+  }
+
+  yc[0]   =  0 - yc[1];
+  yc[N_y+1]=  L_y + (L_y-yc[N_y]);
+
+  for (int i = 0; i <= N_x+1; i++)
+  {       
    mesh_p[i] = new FVcell [N_y+2];
    for(int j = 0; j<= N_y+1; j++)
    {       
-     // yj=1−tanh[γ(1–2jN2)]tanh(γ)               //(j=0,…,N2),(3)
-    mesh_p[i][j].setCellPos( L_y/N_y/2. +  (L_y/N_y)*(i-1), L_x/N_x/2. + (L_x/N_x)*(j-1), L_y/N_y, L_x/N_x  );
+    double dx = 2.*(xf[i]  - xc[i]);   
+    double dy = 2.*(yf[j]  - yc[j]);     
+    mesh_p[i][j].setCellPos( xc[i], yc[j], dx, dy  );
+    mesh_p[i][j].setCellLabel( i, j, N_x, N_y);
+
    }     
- }       
+ }
 
  return mesh_p;
 };
@@ -206,6 +247,20 @@ volumeField buildFVfield (int N_x, int N_y, double L_x, double L_y)
     mesh_p[i][j].setCellLabel( i, j, N_x, N_y);
 
    }     
+ }
+ field.mesh = mesh_p;
+ field.dimx = N_x;
+ field.dimy = N_y;
+ return field;
+};
+////////////////////////////////////////////////////////////////
+volumeField allocFVfield (int N_x, int N_y)
+{
+ volumeField field;
+ FVcell **mesh_p = new FVcell* [N_x+2];
+ for (int i = 0; i <= N_x+1; i++)
+ {       
+   mesh_p[i] = new FVcell [N_y+2]; 
  }
  field.mesh = mesh_p;
  field.dimx = N_x;
@@ -498,3 +553,11 @@ double sum (const volumeField& field)
     };
     return (accum);
 };
+
+
+////////////////////////////////////////////////////
+void reshapeMesh( &vector<FVcell> mesh_vector,   FVcell** mesh)
+{
+ 
+}
+

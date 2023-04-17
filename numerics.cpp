@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <petscksp.h>
 
 #include "mesh.h"
 
@@ -362,6 +363,74 @@ void getVolumeField(volumeField* field,  double* array)
          if (n>=N_x*N_y)
          {std::cout<<"ERROR: n="<< n<<" >N"<<"\n";}
          field->mesh[i+1][j+1].setVal(array[n]);
+        } 
+    }
+ return;
+};
+/**************************************/
+
+void getMPI_Buffer(int nProc, buffer* data,  FVcell** mesh, int ii, int N_x, int N_y)
+{
+   int n=0;
+
+    for (int i=ii*(N_x/nProc); i<=(ii+1)*(N_x/nProc) + 1; i++)
+    {
+        for (int j=0;j<=N_y+1;j++)
+        {
+         data[n].x  = mesh[i][j].xCentroid();
+         data[n].y  = mesh[i][j].yCentroid();
+         data[n].dx = mesh[i][j].dx();
+         data[n].dy = mesh[i][j].dy();
+         n++;
+        } 
+    }
+ return;
+};
+
+/**************************************/
+
+void getMesh(int nProc, buffer* data,  volumeField* p, 
+                                        volumeField* u,
+                                        volumeField* v,
+                                        volumeField* Ux_star,
+                                        volumeField* Uy_star,
+                                        volumeField* div,
+                                        int ii)
+{
+   int N_x = p->dimx;
+   int N_y = p->dimy;
+
+   int n=0;
+
+    for (int i=0; i<=N_x + 1; i++)
+    {
+        for (int j=0;j<=N_y+1;j++)
+        {
+          p->mesh[i][j].setCellPos( data[n].x,
+                                    data[n].y, 
+                                    data[n].dx, 
+                                    data[n].dy);
+
+          u->mesh[i][j].setCellPos( data[n].x,
+                                    data[n].y, 
+                                    data[n].dx, 
+                                    data[n].dy);
+                                 
+          v->mesh[i][j].setCellPos( data[n].x,
+                                    data[n].y, 
+                                    data[n].dx, 
+                                    data[n].dy);
+
+          Ux_star->mesh[i][j].setCellPos( data[n].x,
+                                          data[n].y, 
+                                          data[n].dx, 
+                                          data[n].dy);
+
+          Uy_star->mesh[i][j].setCellPos( data[n].x,
+                                          data[n].y, 
+                                          data[n].dx, 
+                                          data[n].dy);
+         n++;
         } 
     }
  return;
